@@ -54,7 +54,7 @@ public partial class MainWindow : Window
     private readonly HashSet<string> failedPreviews = new(StringComparer.OrdinalIgnoreCase);
     private bool CanPlayPreview => !windowClosed && !launching && !browsingSystems && IsVisible
         && WindowState != WindowState.Minimized && StartupSplash.Visibility != Visibility.Visible && DetailsOverlay.Visibility != Visibility.Visible
-        && UtilityOverlay.Visibility != Visibility.Visible && PowerOverlay.Visibility != Visibility.Visible;
+        && UtilityOverlay.Visibility != Visibility.Visible && PowerOverlay.Visibility != Visibility.Visible && UpdateOverlay.Visibility != Visibility.Visible;
     private void UpdateGamePreview()
     {
         string? path = viewModel.SelectedGame?.VideoPath;
@@ -124,11 +124,12 @@ public partial class MainWindow : Window
     public double SystemConsoleImageHeight { get => (double)GetValue(SystemConsoleImageHeightProperty); set => SetValue(SystemConsoleImageHeightProperty, value); }
     public MainWindow() : this(new WindowsPowerService()) { }
     public MainWindow(IComputerPowerService computerPower) : this(computerPower, new SecondaryDisplayService()) { }
-    public MainWindow(IComputerPowerService computerPower, SecondaryDisplayService secondaryDisplay)
+    public MainWindow(IComputerPowerService computerPower, SecondaryDisplayService secondaryDisplay, AppUpdateService? updateService = null)
     {
+        this.appUpdates = updateService ?? new AppUpdateService();
         this.computerPower = computerPower;
         this.secondaryDisplay = secondaryDisplay;
-        InitializeComponent();
+        InitializeComponent(); InitializeUpdates();
         DataContext = viewModel;
         MusicPanel.DataContext = music;
         NowPlayingDisplay.DataContext = music;
@@ -207,7 +208,7 @@ public partial class MainWindow : Window
     }
     private bool CanRefreshInBackground => !windowClosed && !launching && !refreshingLibrary && !applyingMetadataBatch
         && WindowState != WindowState.Minimized && StartupSplash.Visibility != Visibility.Visible && DetailsOverlay.Visibility != Visibility.Visible
-        && UtilityOverlay.Visibility != Visibility.Visible && PowerOverlay.Visibility != Visibility.Visible;
+        && UtilityOverlay.Visibility != Visibility.Visible && PowerOverlay.Visibility != Visibility.Visible && UpdateOverlay.Visibility != Visibility.Visible;
     private async Task RefreshLibraryPeriodicallyAsync()
     {
         if (CanRefreshInBackground) await LoadRetroBatLibraryAsync(background: true);
@@ -348,7 +349,7 @@ public partial class MainWindow : Window
     }
     private async void LaunchGame(object sender, RoutedEventArgs e)
     {
-        if (launching || retroBatSettings is null || viewModel.SelectedGame is not { CanLaunch: true } game) return;
+        if (UpdateOverlay.Visibility == Visibility.Visible || launching || retroBatSettings is null || viewModel.SelectedGame is not { CanLaunch: true } game) return;
         StopGamePreview();
         bool recordedPlay = false;
         launching = true;
@@ -574,6 +575,7 @@ public partial class MainWindow : Window
     }
     private void ShowHelp(object sender, RoutedEventArgs e)
     {
+        UpdateSettingsPanel.Visibility = Visibility.Collapsed;
         SecondaryScreenPanel.Visibility = Visibility.Collapsed;
         WindowsStartupPanel.Visibility = Visibility.Collapsed;
         MusicPanel.Visibility = Visibility.Collapsed;
@@ -586,6 +588,7 @@ public partial class MainWindow : Window
     }
     private void ShowSettings(object sender, RoutedEventArgs e)
     {
+        UpdateSettingsPanel.Visibility = Visibility.Visible; RefreshUpdateStatus();
         SecondaryScreenPanel.Visibility = Visibility.Visible;
         RefreshSecondarySetting();
         WindowsStartupPanel.Visibility = Visibility.Visible;
@@ -690,7 +693,7 @@ public partial class MainWindow : Window
         if (Directory.Exists(music.Folder)) dialog.InitialDirectory = music.Folder;
         if (dialog.ShowDialog(this) == true) await music.LoadFolderAsync(dialog.FolderName);
     }
-    private Button[] UtilityButtons => [FullscreenButton, RefreshLibraryButton, WindowsStartupButton, SecondaryScreenButton, MusicPreviousButton, MusicPlayButton, MusicNextButton,
+    private Button[] UtilityButtons => [FullscreenButton, RefreshLibraryButton, CheckUpdatesButton, WindowsStartupButton, SecondaryScreenButton, MusicPreviousButton, MusicPlayButton, MusicNextButton,
         MusicFolderButton, MusicQuieterButton, MusicLouderButton, MusicAnimationButton, UtilityBackButton];
     private void OpenUtility()
     {
@@ -743,6 +746,7 @@ public partial class MainWindow : Window
     }
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
+        if (UpdateOverlay.Visibility == Visibility.Visible) { HandleUpdateKey(e); return; }
         if (launching) { e.Handled = true; return; }
         if (e.Key == Key.F11) { if (!e.IsRepeat) ToggleFullscreenClick(sender, e); e.Handled = true; return; }
         if (StartupSplash.Visibility == Visibility.Visible)
@@ -787,7 +791,7 @@ public partial class MainWindow : Window
         if (UtilityOverlay.Visibility == Visibility.Visible)
         {
             if (!e.IsRepeat && e.Key == Key.Escape) CloseUtility(sender, e);
-            else if (!e.IsRepeat && select) ClickFocused(UtilityButtons);
+            else if (!e.IsRepeat && (select || e.Key is Key.D1 or Key.NumPad1)) ClickFocused(UtilityButtons);
             else if (direction || e.Key == Key.Tab) MoveButtonFocus(step, UtilityButtons);
             e.Handled = true;
             return;

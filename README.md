@@ -63,3 +63,9 @@ Local `<video>`, `<fanart>` and `<marquee>` gamelist entries are supported, as a
 ## Third-party content
 
 See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The Arkade branding and intro are included; legacy branding and cached game artwork remain local. Downloaded metadata/media retains its respective source and ownership.
+
+## Automatic cabinet updates
+
+Pushes to main run the cabinet package workflow, test the updater, and publish a complete GitHub prerelease with the ZIP and SHA256 file. Versions are generated as 0.2.<workflow run number>; rerun failures with the same number only while the release is still a draft. Installed updater-enabled builds include these public cabinet test releases.
+
+Settings > Check for updates runs a check now. The automatic check uses a persistent 48-hour interval and retries a failed connection after six hours. Prompts wait until browsing; no game is interrupted. Installation requires explicit confirmation, verifies the download, stages a replacement, retains a backup, preserves retrobat.settings.json and restarts Arkade. User data remains under LocalAppData/ArcadeOS. A cabinet running 0.1.x needs one manual upgrade to get this feature.

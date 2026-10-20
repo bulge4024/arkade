@@ -224,6 +224,10 @@
   <Border x:Name="UtilityOverlay" Background="#FC101722" BorderBrush="#EAC574" BorderThickness="1" CornerRadius="15" Margin="22,16" Padding="28" Visibility="Collapsed">
    <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel VerticalAlignment="Center"><TextBlock x:Name="UtilityTitle" Foreground="#EAC574" FontSize="28" FontWeight="Black"/><TextBlock x:Name="UtilityText" TextWrapping="Wrap" FontSize="16" LineHeight="28" Margin="0,24,0,24"/><Button x:Name="FullscreenButton" Content="TOGGLE FULLSCREEN" Click="ToggleFullscreenClick" HorizontalAlignment="Left"/><Button x:Name="RefreshLibraryButton" Content="REFRESH LIBRARY" Click="RefreshLibraryClick" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+     <StackPanel x:Name="UpdateSettingsPanel" Margin="0,16,0,4" Visibility="Collapsed">
+      <Button x:Name="CheckUpdatesButton" Content="CHECK FOR UPDATES" Click="CheckUpdatesClick" HorizontalAlignment="Left"/>
+      <TextBlock x:Name="UpdateSettingsStatus" Foreground="#A8B4C4" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
+     </StackPanel>
      <StackPanel x:Name="WindowsStartupPanel" Margin="0,12,0,0" Visibility="Collapsed">
       <Button x:Name="WindowsStartupButton" Content="START WITH WINDOWS: OFF" Click="WindowsStartupClick" HorizontalAlignment="Left"/>
       <TextBlock x:Name="WindowsStartupStatus" Text="Open Arkade automatically when you sign in to Windows." Foreground="#A8B4C4" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
@@ -255,6 +259,17 @@
     <Button x:Name="PowerCancelButton" Content="BACK TO ARKADE" Click="CancelPower"/>
     <TextBlock Text="JOYSTICK  CHOOSE     SELECT  CONFIRM     BACK  CANCEL" Foreground="#A8B4C4" FontSize="10" TextWrapping="Wrap" Margin="0,18,0,0"/>
    </StackPanel>
+  </Border>
+  <Border x:Name="UpdateOverlay" Background="#FC101722" BorderBrush="#EAC574" BorderThickness="1" CornerRadius="15" Margin="22,16" Padding="28" Visibility="Collapsed" Panel.ZIndex="99">
+   <Grid MaxWidth="640"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <TextBlock x:Name="UpdateTitle" Text="ARKADE UPDATE" FontSize="25" FontWeight="Black" Foreground="#EAC574" TextWrapping="Wrap"/>
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,20,0,20"><TextBlock x:Name="UpdateMessage" TextWrapping="Wrap" FontSize="16"/></ScrollViewer>
+    <StackPanel Grid.Row="2"><ProgressBar x:Name="UpdateProgress" Height="9" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,0,0,18"/>
+     <Button x:Name="UpdateInstallButton" Content="DOWNLOAD AND INSTALL" Click="InstallUpdateClick" Background="#EAC574" Foreground="#17150F" Margin="0,0,0,12"/>
+     <Button x:Name="UpdateLaterButton" Content="LATER" Click="CloseUpdate"/>
+     <TextBlock Text="JOYSTICK  CHOOSE     SELECT / START  CONFIRM     BACK  CANCEL" Foreground="#A8B4C4" FontSize="10" TextWrapping="Wrap" Margin="0,16,0,0"/>
+    </StackPanel>
+   </Grid>
   </Border>
   <controls:NowPlayingWidget x:Name="NowPlayingDisplay" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,22,0" Panel.ZIndex="90"/>
   <Grid x:Name="LaunchSplash" Background="#090D15" Panel.ZIndex="200" Visibility="Collapsed" AutomationProperties.Name="Starting selected game">

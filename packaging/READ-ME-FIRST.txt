@@ -75,3 +75,6 @@ service; no actual computer power action was run during development tests.
 COMPANION SCREEN
 Settings > Second Screen chooses Auto, Off or another extended display.
 The screen follows console/game highlights and releases the DMD for pinball.
+
+IN-APP UPDATES
+Settings > Check for updates checks the public bulge4024/arkade GitHub releases. Arkade also checks every two days while open and browsing, then asks before downloading. Select Download and Install to verify the package, close Arkade, replace the installed app and reopen. The existing RetroBat configuration and your app-data settings/history remain intact. The previous app folder is retained beside the installation as a backup. Updates require internet and write access to the installed folder; the normal per-user installation needs no administrator rights. Older 0.1.x builds need one manual installation of an updater-enabled build first.
