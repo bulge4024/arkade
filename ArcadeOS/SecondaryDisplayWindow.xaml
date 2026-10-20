@@ -1,0 +1,20 @@
+<Window x:Class="ArcadeOS.SecondaryDisplayWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Arkade Companion Display" WindowStyle="None" ResizeMode="NoResize" WindowStartupLocation="Manual" ShowInTaskbar="False" ShowActivated="False" Focusable="False" Background="#090D15" Width="960" Height="540">
+ <Grid IsHitTestVisible="False" ClipToBounds="True">
+  <Image Source="{Binding Background}" Stretch="UniformToFill" Opacity=".23"/>
+  <Border><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#DB090D15"/><GradientStop Color="#66090D15" Offset=".5"/><GradientStop Color="#E6090D15" Offset="1"/></LinearGradientBrush></Border.Background></Border>
+  <Grid Margin="32,22"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <DockPanel><Image Source="Assets/Arkade-logo.png" Stretch="Uniform" Height="48" Width="160" HorizontalAlignment="Left" DockPanel.Dock="Left"/><TextBlock Text="{Binding Label}" Foreground="#76D6BA" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel>
+   <Grid Grid.Row="1" Margin="0,18"><Grid.ColumnDefinitions><ColumnDefinition Width=".42*"/><ColumnDefinition Width=".58*"/></Grid.ColumnDefinitions>
+    <Grid Margin="12,0,28,0"><TextBlock Text="{Binding Symbol}" Foreground="#EAC574" FontSize="100" VerticalAlignment="Center" HorizontalAlignment="Center"/><Image Source="{Binding Artwork}" Stretch="Uniform"/></Grid>
+    <Grid Grid.Column="1"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <Grid>
+      <Image Source="{Binding Marquee}" Stretch="Uniform" Margin="0,8,0,20"><Image.Style><Style TargetType="Image"><Style.Triggers><DataTrigger Binding="{Binding Marquee}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Image.Style></Image>
+      <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left"><Viewbox.Style><Style TargetType="Viewbox"><Style.Triggers><DataTrigger Binding="{Binding HasMarquee}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Viewbox.Style><TextBlock Text="{Binding Title}" Width="620" FontFamily="Segoe UI" FontSize="76" FontWeight="Black" Foreground="#F5F1E8" TextWrapping="Wrap"/></Viewbox>
+     </Grid>
+     <TextBlock Grid.Row="1" Text="{Binding Subtitle}" Foreground="#C5CDD9" FontFamily="Segoe UI" FontSize="18" TextWrapping="Wrap" Margin="0,12,0,0"/>
+    </Grid>
+   </Grid>
+   <Grid Grid.Row="2"><Border Height="2" Background="#645437" VerticalAlignment="Top"/><TextBlock Text="{Binding Footer}" Foreground="#EAC574" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Margin="0,12,0,0"/></Grid>
+  </Grid>
+ </Grid>
+</Window>

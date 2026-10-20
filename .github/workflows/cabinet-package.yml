@@ -1,0 +1,36 @@
+name: Cabinet test package
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version (for example 0.1.3)
+        required: true
+        default: 0.1.3
+        type: string
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish cabinet test ZIP
+        shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          $version = if ($env:REQUESTED_VERSION) { $env:REQUESTED_VERSION } else { $env:GITHUB_REF_NAME -replace '^v', '' }
+          ./scripts/Publish-TestBuild.ps1 -Version $version
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Arkade-win-x64
+          path: |
+            artifacts/*.zip
+            artifacts/*.sha256
+          if-no-files-found: error
+          retention-days: 30

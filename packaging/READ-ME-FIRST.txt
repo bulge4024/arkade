@@ -1,0 +1,77 @@
+ARKADE - CABINET TEST BUILD
+Windows x64 | Self-contained .NET runtime. Version: see BUILD-INFO.json.
+
+INSTALL
+1. Copy the ZIP to the cabinet PC and extract ALL files to a normal folder.
+2. Double-click Setup.cmd. Administrator rights are not required.
+3. Enter the cabinet's RetroBat installation folder (default C:\RetroBat).
+4. Start Arkade from the Arkade Test desktop shortcut.
+
+The default installation location is:
+%LOCALAPPDATA%\Programs\Arkade-Test
+
+Keep the app folder intact. Arkade.exe needs the other files beside it.
+No Visual Studio or separate .NET installation is required. RetroBat and the
+emulators used by your games must already be installed on the cabinet.
+This package contains no ROMs, games or emulator installations.
+
+CONTROLS
+Arrows / joystick: navigate
+Enter or Space: Select
+1: Start selected game
+Esc: Back
+Tab: Menu / return to systems
+F11: switch fullscreen/windowed (starts fullscreen every time)
+Alt+F4: close Arkade
+F5: refresh library
+F6: music play/pause | F7: next | F8: previous
+Keyboard media buttons also work while Arkade has focus.
+Map cabinet buttons to these keys using the existing controller setup.
+
+FIRST RUN
+- Check that each system finds the cabinet's installed ROMs.
+- Test one game per system, including exit back to the selected game.
+- Test joystick navigation, alphabet jumps and console switching.
+- Choose a music folder in Settings. Check music pauses during gameplay.
+- Confirm the intro, fullscreen display, previews and artwork fit the screen.
+- Metadata/artwork downloads require internet; cached media works offline.
+- Gameplay previews use the cabinet's existing local video files; scrape
+  videos in RetroBat or add them under each system's videos folder.
+
+CONFIGURATION AND UPDATES
+retrobat.settings.json in the installed folder holds the RetroBat path,
+optional ROM root and launch profiles. Setup preserves custom settings
+when installing a newer package to the same directory, updating only the
+RetroBat installation path you supply.
+Your music settings, history and downloaded metadata are stored under:
+%LOCALAPPDATA%\ArcadeOS\Metadata
+(The existing internal data-folder name is retained for compatibility.)
+
+Setup does not edit RetroBat, ROMs, emulator settings, monitor settings or
+Windows startup during installation. To enable automatic launch, open Settings and turn START WITH WINDOWS to ON. It applies only to the signed-in Windows user and uses the installed Arkade executable. Turn it OFF before removing or moving the installation.
+
+REMOVE THE TEST BUILD
+Turn START WITH WINDOWS off in Settings. Close Arkade, delete its installation folder and the Arkade Test shortcuts.
+Your RetroBat installation, ROMs and personal cache/history remain intact.
+
+TROUBLESHOOTING
+If setup cannot find emulatorLauncher.exe, check the RetroBat folder you
+entered. If a game fails to start, verify it runs in RetroBat first and note
+the ROM filename, system, selected emulator and any displayed exit code.
+MP4 previews and audio formats depend on Windows media codecs; Windows N
+editions may need Microsoft's Media Feature Pack.
+
+
+POWER MENU
+On the system-selection screen choose POWER at the bottom. Choose Power off,
+Sleep or Restart, then explicitly confirm. Cancel is selected by default.
+Esc cancels. Power off/restart request a normal Windows shutdown and do not
+force-close other applications. Sleep depends on cabinet hardware and Windows
+permissions. Music pauses during the power request and resumes after sleep.
+Confirmation, cancel and error paths were tested with a simulated power
+service; no actual computer power action was run during development tests.
+
+
+COMPANION SCREEN
+Settings > Second Screen chooses Auto, Off or another extended display.
+The screen follows console/game highlights and releases the DMD for pinball.

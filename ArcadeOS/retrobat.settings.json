@@ -1,0 +1,15 @@
+{
+  "InstallationPath": "C:\\RetroBat",
+  "RomsRoot": null,
+  "AutomaticMetadataEnabled": true,
+  "LaunchProfiles": {
+    "vpinball": {
+      "Emulator": "vpinball",
+      "Core": "vpinball"
+    },
+    "megadrive": {
+      "Emulator": "libretro",
+      "Core": "genesis_plus_gx"
+    }
+  }
+}

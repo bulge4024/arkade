@@ -1,0 +1,41 @@
+# Visual Studio / .NET build outputs
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local build packages and scratch data
+artifacts/
+outputs/
+work/
+*.zip
+*.sha256
+*.log
+*.dmp
+
+# Personal settings, credentials and signing files
+.env
+.env.*
+!.env.example
+*.settings.local.json
+*.pfx
+*.p12
+*.key
+
+# Cabinet/game media is obtained on each installed machine.
+ArcadeOS/LibraryCache/**
+!ArcadeOS/LibraryCache/README.md
+**/roms/
+**/saves/
+**/screenshots/
+**/Metadata/
+*.rom
+*.iso
+*.chd
+
+# Superseded local branding; active Arkade branding remains tracked.
+ArcadeOS/Assets/ArcadeOS-logo.jpg
+ArcadeOS/Assets/splashvideo.mp4
