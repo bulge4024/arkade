@@ -43,10 +43,11 @@ try {
     if (Test-Path -LiteralPath (Join-Path $installed 'old-only.txt')) { throw 'Stale application files survived the swap.' }
     $backup = Get-ChildItem -LiteralPath $root -Directory -Filter 'installed.backup-*' | Select-Object -First 1
     if (-not $backup -or [IO.File]::ReadAllText((Join-Path $backup.FullName 'Arkade.exe')) -ne 'original fixture - not executable') { throw 'Original version not retained.' }
-    foreach($name in @('Arkade Test.lnk','My Cabinet.lnk')) {
+    foreach($name in @('Arkade.lnk','My Cabinet.lnk')) {
         $link=$shell.CreateShortcut((Join-Path $shortcuts $name))
         if($link.TargetPath -ne (Join-Path $installed 'Arkade.exe') -or $link.WorkingDirectory -ne $installed){throw 'Shortcut still points to old version or backup.'}
     }
+    if(Test-Path -LiteralPath (Join-Path $shortcuts 'Arkade Test.lnk')){throw 'Legacy test shortcut was not migrated.'}
     if(-not (Test-Path -LiteralPath (Join-Path $installed 'BUILD-INFO.json')) -or -not ([IO.File]::ReadAllText($resultFile)).Contains($expectedVersion)){throw 'Installed version/result was not recorded.'}
     # A missing payload must leave the installed version untouched.
     & $powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $helper -Payload (Join-Path $root 'missing') -InstallDirectory $installed -ParentId 0 -NoLaunch -ShortcutDirectory $shortcuts -ResultFile $resultFile

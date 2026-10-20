@@ -1,6 +1,6 @@
 <Window x:Class="ArcadeOS.MainWindow"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:ArcadeOS.Controls"
- Title="Arkade" Width="760" Height="1020" MinWidth="480" MinHeight="700" WindowStartupLocation="CenterScreen"
+ Title="Arkade" Icon="Assets/Arkade.ico" Width="760" Height="1020" MinWidth="480" MinHeight="700" WindowStartupLocation="CenterScreen"
  Background="#090D15" Foreground="#F5F1E8" FontFamily="Segoe UI" PreviewKeyDown="OnKeyDown">
  <Window.Resources>
   <DrawingImage x:Key="RecentArtwork">

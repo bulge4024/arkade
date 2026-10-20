@@ -5,7 +5,7 @@ INSTALL
 1. Copy the ZIP to the cabinet PC and extract ALL files to a normal folder.
 2. Double-click Setup.cmd. Administrator rights are not required.
 3. Enter the cabinet's RetroBat installation folder (default C:\RetroBat).
-4. Start Arkade from the Arkade Test desktop shortcut.
+4. Start Arkade from the Arkade desktop shortcut.
 
 The default installation location is:
 %LOCALAPPDATA%\Programs\Arkade-Test
@@ -51,7 +51,7 @@ Setup does not edit RetroBat, ROMs, emulator settings, monitor settings or
 Windows startup during installation. To enable automatic launch, open Settings and turn START WITH WINDOWS to ON. It applies only to the signed-in Windows user and uses the installed Arkade executable. Turn it OFF before removing or moving the installation.
 
 REMOVE THE TEST BUILD
-Turn START WITH WINDOWS off in Settings. Close Arkade, delete its installation folder and the Arkade Test shortcuts.
+Turn START WITH WINDOWS off in Settings. Close Arkade, delete its installation folder and the Arkade shortcuts.
 Your RetroBat installation, ROMs and personal cache/history remain intact.
 
 TROUBLESHOOTING

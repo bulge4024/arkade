@@ -34,10 +34,10 @@ function Refresh-ArkadeShortcuts {
     $shell = New-Object -ComObject WScript.Shell
     foreach ($folder in $folders) {
         New-Item -ItemType Directory -Path $folder -Force | Out-Null
-        $paths = @((Join-Path $folder 'Arkade Test.lnk'))
+        $paths = @((Join-Path $folder 'Arkade.lnk'))
         foreach ($link in (Get-ChildItem -LiteralPath $folder -Filter '*.lnk' -File -ErrorAction SilentlyContinue)) {
             $target = $shell.CreateShortcut($link.FullName).TargetPath
-            if ($target -eq (Join-Path $InstallDirectory 'Arkade.exe') -or $target -eq (Join-Path $backup 'Arkade.exe')) { $paths += $link.FullName }
+            if ($target -eq (Join-Path $InstallDirectory 'Arkade.exe') -or $target -eq (Join-Path $backup 'Arkade.exe')) { if ($link.Name -ne 'Arkade Test.lnk') { $paths += $link.FullName } }
         }
         foreach ($path in ($paths | Select-Object -Unique)) {
             # A fresh link drops Shell link-tracking IDs that can follow the old EXE into the backup.
@@ -49,6 +49,11 @@ function Refresh-ArkadeShortcuts {
             $shortcut.Description = 'Arkade cabinet frontend'
             $shortcut.Save()
             Move-Item -LiteralPath $temporary -Destination $path -Force
+        }
+        $legacy = Join-Path $folder 'Arkade Test.lnk'
+        if (Test-Path -LiteralPath $legacy) {
+            $target = $shell.CreateShortcut($legacy).TargetPath
+            if ($target -eq (Join-Path $InstallDirectory 'Arkade.exe') -or $target -eq (Join-Path $backup 'Arkade.exe')) { Remove-Item -LiteralPath $legacy -Force }
         }
     }
 }

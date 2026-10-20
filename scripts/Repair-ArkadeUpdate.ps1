@@ -7,7 +7,8 @@ if(-not (Test-Path -LiteralPath $helper)){throw 'Extract the complete repair ZIP
 $shell=New-Object -ComObject WScript.Shell
 $desktop=if($ShortcutDirectory){$ShortcutDirectory}else{[Environment]::GetFolderPath('Desktop')}
 if([string]::IsNullOrWhiteSpace($InstallDirectory)){
-    $link=Join-Path $desktop 'Arkade Test.lnk'
+    $link=Join-Path $desktop 'Arkade.lnk'
+    if(-not (Test-Path -LiteralPath $link)){$link=Join-Path $desktop 'Arkade Test.lnk'}
     if(Test-Path -LiteralPath $link){$target=$shell.CreateShortcut($link).TargetPath;if($target){$InstallDirectory=Split-Path $target -Parent}}
     if([string]::IsNullOrWhiteSpace($InstallDirectory)){$InstallDirectory=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\Arkade-Test'}
     # Shell link tracking may have followed the old executable into an updater backup.
@@ -29,7 +30,9 @@ foreach($folder in $folders){
     New-Item -ItemType Directory -Path $folder -Force | Out-Null
     $temporary=Join-Path $folder ([Guid]::NewGuid().ToString('N')+'.lnk')
     $link=$shell.CreateShortcut($temporary);$link.TargetPath=Join-Path $InstallDirectory 'Arkade.exe';$link.WorkingDirectory=$InstallDirectory;$link.IconLocation=(Join-Path $InstallDirectory 'Arkade.exe')+',0';$link.Description='Arkade cabinet frontend';$link.Save()
-    Move-Item -LiteralPath $temporary -Destination (Join-Path $folder 'Arkade Test.lnk') -Force
+    Move-Item -LiteralPath $temporary -Destination (Join-Path $folder 'Arkade.lnk') -Force
+    $legacy=Join-Path $folder 'Arkade Test.lnk'
+    if(Test-Path -LiteralPath $legacy){$oldTarget=$shell.CreateShortcut($legacy).TargetPath;if($oldTarget -eq (Join-Path $InstallDirectory 'Arkade.exe') -or $oldTarget -like ($InstallDirectory+'.backup-*\Arkade.exe')){Remove-Item -LiteralPath $legacy -Force}}
 }
 Write-Host 'Arkade updater repaired successfully.' -ForegroundColor Green
 Write-Host "Application folder: $InstallDirectory"

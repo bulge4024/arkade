@@ -4,7 +4,8 @@ param(
     [string]$InstallDirectory,
     [switch]$NoShortcut,
     [switch]$NoLaunch,
-    [switch]$NonInteractive
+    [switch]$NonInteractive,
+    [string]$ShortcutDirectory
 )
 $ErrorActionPreference = 'Stop'
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'This test build requires 64-bit Windows.' }
@@ -38,17 +39,26 @@ $settings | Add-Member -NotePropertyName InstallationPath -NotePropertyValue $Re
 New-Item -ItemType Directory -Path $InstallDirectory -Force | Out-Null
 Get-ChildItem -LiteralPath $packageApp -Force | Copy-Item -Destination $InstallDirectory -Recurse -Force
 [IO.File]::WriteAllText($settingsFile, ($settings | ConvertTo-Json -Depth 16), [Text.UTF8Encoding]::new($false))
+if (Test-Path -LiteralPath $buildInfo) { Copy-Item -LiteralPath $buildInfo -Destination (Join-Path $InstallDirectory 'BUILD-INFO.json') -Force }
 if (-not $NoShortcut) {
     $shell = New-Object -ComObject WScript.Shell
-    foreach ($folder in @([Environment]::GetFolderPath('Desktop'), (Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs'))) {
-        $shortcut = $shell.CreateShortcut((Join-Path $folder 'Arkade Test.lnk'))
+    $folders = if ($ShortcutDirectory) { @($ShortcutDirectory) } else { @([Environment]::GetFolderPath('Desktop'), (Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs')) }
+    foreach ($folder in $folders) {
+        New-Item -ItemType Directory -Path $folder -Force | Out-Null
+        $shortcut = $shell.CreateShortcut((Join-Path $folder 'Arkade.lnk'))
         $shortcut.TargetPath = $executable
         $shortcut.WorkingDirectory = $InstallDirectory
-        $shortcut.Description = "Arkade cabinet test build $buildVersion"
+        $shortcut.Description = "Arkade $buildVersion"
+        $shortcut.IconLocation = $executable + ',0'
         $shortcut.Save()
+        $legacy = Join-Path $folder 'Arkade Test.lnk'
+        if (Test-Path -LiteralPath $legacy) {
+            $oldTarget = $shell.CreateShortcut($legacy).TargetPath
+            if ($oldTarget -eq $executable -or $oldTarget -like ($InstallDirectory+'.backup-*\Arkade.exe')) { Remove-Item -LiteralPath $legacy -Force }
+        }
     }
 }
-Write-Host "Installed Arkade Test to $InstallDirectory" -ForegroundColor Green
+Write-Host "Installed Arkade to $InstallDirectory" -ForegroundColor Green
 Write-Host "RetroBat: $RetroBatPath"
 Write-Host 'Your ROMs and RetroBat configuration were not changed.'
 if (-not $NoLaunch -and -not $NonInteractive) {
