@@ -10,17 +10,42 @@ public sealed class WindowsPowerService : IComputerPowerService
     public static ProcessStartInfo CreateShutdownCommand(ComputerPowerAction action)
     {
         if (action is not (ComputerPowerAction.PowerOff or ComputerPowerAction.Restart)) throw new ArgumentOutOfRangeException(nameof(action));
-        var info = new ProcessStartInfo(System.IO.Path.Combine(Environment.SystemDirectory, "shutdown.exe")) { UseShellExecute = false, CreateNoWindow = true };
+        var info = new ProcessStartInfo(System.IO.Path.Combine(Environment.SystemDirectory, "shutdown.exe")) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         info.ArgumentList.Add(action == ComputerPowerAction.PowerOff ? "/s" : "/r");
         info.ArgumentList.Add("/t"); info.ArgumentList.Add("0");
         return info;
     }
     public async Task ExecuteAsync(ComputerPowerAction action)
     {
-        if (action == ComputerPowerAction.Sleep) { await Task.Run(Sleep).ConfigureAwait(false); return; }
-        using var process = Process.Start(CreateShutdownCommand(action)) ?? throw new InvalidOperationException("Windows could not open its power controls.");
-        await process.WaitForExitAsync().ConfigureAwait(false);
-        if (process.ExitCode != 0) throw new InvalidOperationException($"Windows declined the power request (code {process.ExitCode}).");
+        Log(action, "Confirmed request received.");
+        try
+        {
+            if (action == ComputerPowerAction.Sleep) { await Task.Run(Sleep).ConfigureAwait(false); Log(action, "Sleep request returned."); return; }
+            using var process = Process.Start(CreateShutdownCommand(action)) ?? throw new InvalidOperationException("Windows could not open its power controls.");
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync().ConfigureAwait(false);
+            var detail = string.Join(" ", new[] { await output, await error }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+            Log(action, $"Windows exit code {process.ExitCode}. {detail}");
+            if (process.ExitCode != 0) throw new InvalidOperationException($"Windows declined the power request (code {process.ExitCode}). {detail}");
+        }
+        catch (Exception ex)
+        {
+            Log(action, ex.Message);
+            throw;
+        }
+    }
+    private static void Log(ComputerPowerAction action, string message)
+    {
+        try
+        {
+            var directory = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArcadeOS", "Logs");
+            System.IO.Directory.CreateDirectory(directory);
+            var path = System.IO.Path.Combine(directory, "power.log");
+            if (System.IO.File.Exists(path) && new System.IO.FileInfo(path).Length > 262144) System.IO.File.WriteAllText(path, "");
+            System.IO.File.AppendAllText(path, $"{DateTimeOffset.Now:O} {action}: {message}{Environment.NewLine}");
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { }
     }
     private static void Sleep()
     {

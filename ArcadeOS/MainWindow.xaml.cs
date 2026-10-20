@@ -637,7 +637,7 @@ public partial class MainWindow : Window
             ComputerPowerAction.Sleep => "Put this computer to sleep? You can wake it using the cabinet's normal wake controls.",
             _ => "Restart this computer? Save any open work before continuing."
         };
-        PowerCancelButton.Content = "CANCEL"; PowerCancelButton.Focus();
+        PowerCancelButton.Content = "CANCEL"; PowerOverlay.UpdateLayout(); PowerCancelButton.Focus();
     }
     private void CancelPower(object sender, RoutedEventArgs e)
     {
@@ -651,6 +651,7 @@ public partial class MainWindow : Window
     {
         if (powerBusy || pendingPower is not { } action) return;
         powerBusy = true; PowerOverlay.IsEnabled = false; music.SetSuspended(true);
+        PowerMessage.Text = "Sending the confirmed power request to Windows…";
         try
         {
             await computerPower.ExecuteAsync(action);
@@ -778,7 +779,7 @@ public partial class MainWindow : Window
             if (!powerBusy)
             {
                 if (!e.IsRepeat && e.Key == Key.Escape) CancelPower(sender, e);
-                else if (!e.IsRepeat && select) ClickFocused(PowerButtons);
+                else if (!e.IsRepeat && (select || e.Key is Key.D1 or Key.NumPad1)) ClickFocused(PowerButtons);
                 else if (direction || e.Key == Key.Tab) MoveButtonFocus(step, PowerButtons);
             }
             e.Handled = true; return;
