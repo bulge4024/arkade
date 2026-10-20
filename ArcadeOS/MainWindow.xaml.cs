@@ -383,7 +383,7 @@ public partial class MainWindow : Window
                 if (!recordedPlay) viewModel.RecordPlayed(game);
                 LaunchWindowBackdrop.SetBackgroundMode(this, false);
                 LaunchPhaseText.Text = "RETURNING TO ARKADE"; LaunchStatusText.Text = "Restoring your game library…";
-                Show(); Activate();
+                LaunchWindowBackdrop.RestoreForeground(this);
                 await Task.Delay(TimeSpan.FromSeconds(3), metadataCancellation.Token);
                 CloseDetails(sender, e);
                 viewModel.Status = $"Welcome back. {game.Title} is still selected.";
@@ -404,15 +404,28 @@ public partial class MainWindow : Window
             LaunchSplash.Visibility = Visibility.Collapsed;
             if (!windowClosed)
             {
-                Show();
-                Activate();
-                if (DetailsOverlay.Visibility == Visibility.Visible) LaunchButton.Focus();
-                else GameGrid.Focus();
+                await RestoreMenuFocusAsync();
                 if (metadataRefreshPending) _ = ApplyMetadataBatchAsync();
                 UpdateGamePreview();
             }
         }
     }
+    private async Task RestoreMenuFocusAsync()
+    {
+        foreach (int delay in new[] { 0, 100, 250, 500, 750 })
+        {
+            if (delay > 0) await Task.Delay(delay);
+            if (windowClosed || launching) return;
+            if (!LaunchWindowBackdrop.RestoreForeground(this)) continue;
+            await Dispatcher.InvokeAsync(() =>
+            {
+                var target = DetailsOverlay.Visibility == Visibility.Visible ? (IInputElement)LaunchButton : GameGrid;
+                Focus(); Keyboard.Focus(target);
+            }, DispatcherPriority.Input);
+            if (IsActive) return;
+        }
+    }
+
     private void DismissSplash()
     {
         if (dismissingSplash) return;

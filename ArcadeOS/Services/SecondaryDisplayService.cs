@@ -57,7 +57,7 @@ public sealed class SecondaryDisplayService : IDisposable
             content = new(game.Title, marquee is not null ? game.Title : game.Platform,
                 game.Platform.ToUpperInvariant() + (runningGame is null ? "  /  GAME SELECTED" : "  /  NOW PLAYING"),
                 string.Join("  ·  ", new[] { game.MetadataLine, game.Players }.Where(text => !string.IsNullOrWhiteSpace(text))),
-                art is null ? game.Symbol : "", art, LoadImage(game.BackgroundArtworkPath), marquee);
+                art is null ? game.Symbol : "", art, LoadImage(game.FanartPath) ?? LoadImage(game.ArtworkPath), marquee, game.VideoPath);
         }
         else if (system is not null)
         {
