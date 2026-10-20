@@ -8,7 +8,7 @@ public static class EmulatorWindowMonitor
 {
     public static async Task TrackSessionAsync(Process launcher, Action? ready, Action<IntPtr>? gameWindow, CancellationToken token)
     {
-        var tracked = new Dictionary<uint, Process>(); bool announced = false; DateTimeOffset? emptySince = null;
+        var tracked = new Dictionary<uint, Process>(); bool announced = false; uint primaryGame = 0; DateTimeOffset? emptySince = null;
         try
         {
             while (true)
@@ -24,9 +24,9 @@ public static class EmulatorWindowMonitor
                 if (!announced)
                 {
                     IntPtr window = FindGameWindow(alive);
-                    if (window != IntPtr.Zero) { announced = true; gameWindow?.Invoke(window); ready?.Invoke(); }
+                    if (window != IntPtr.Zero) { GetWindowThreadProcessId(window, out primaryGame); announced = true; gameWindow?.Invoke(window); ready?.Invoke(); }
                 }
-                if (launcher.HasExited && alive.Count == 0)
+                if (launcher.HasExited && (announced ? !alive.Contains(primaryGame) : alive.Count == 0))
                 {
                     emptySince ??= DateTimeOffset.UtcNow;
                     // Allow detached children to appear in the snapshot after their launcher exits.
@@ -37,6 +37,16 @@ public static class EmulatorWindowMonitor
             }
         }
         finally { foreach (var child in tracked.Values) child.Dispose(); }
+    }
+    private static bool IsHelper(Process process)
+    {
+        try
+        {
+            var name = process.ProcessName.ToLowerInvariant();
+            return name is "emulatorlauncher" or "emulationstation" or "cmd" or "conhost" or "powershell" or "pwsh"
+                || name.StartsWith("pinup") || name.StartsWith("b2s") || name is "dmdext" or "flexdmd";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { return true; }
     }
     private static bool Exited(Process process)
     {
@@ -55,7 +65,7 @@ public static class EmulatorWindowMonitor
                 try
                 {
                     using var process = Process.GetProcessById((int)processId);
-                    if (process.ProcessName.ToLowerInvariant() is "emulatorlauncher" or "emulationstation" or "cmd" or "conhost" or "powershell" or "pwsh") return true;
+                    if (IsHelper(process)) return true;
                 }
                 catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { return true; }
                 found = window; return false;
