@@ -84,3 +84,6 @@ Arkade now reads generic USB arcade encoders and gamepads directly using Windows
 
 GAME TRANSITIONS
 The loading screen stays behind the emulator throughout startup and gameplay, without forcing a fast game to wait. Slow-start guidance appears after 30 seconds. On exit Arkade shows a three-second return transition and restores the selected game. Pinball's secondary DMD remains released while the game runs.
+
+UPDATER REPAIR FOR EARLY 0.2.x BUILDS
+If an update downloads and restarts but the old version remains, close Arkade, extract Arkade-Updater-Repair.zip and run Repair-ArkadeUpdate.cmd. This patches the old updater helper and recreates the desktop shortcut without replacing the app or its settings. Reopen Arkade and choose Check for updates. New builds release the installation working directory before swapping folders and recreate shortcuts so they cannot follow the old executable into its backup. Settings now shows the running app folder and latest installation result.

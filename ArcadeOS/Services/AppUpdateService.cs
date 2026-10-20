@@ -139,7 +139,7 @@ public sealed class AppUpdateService
     {
         var script = helperPath ?? Path.Combine(AppContext.BaseDirectory, "Assets", "ApplyUpdate.ps1");
         if (!File.Exists(script)) throw new FileNotFoundException("The update helper is missing. Reinstall Arkade to restore it.", script);
-        var info = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe")) { UseShellExecute = false, CreateNoWindow = true };
+        var info = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe")) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetDirectoryName(script)! };
         foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-Payload", Path.GetFullPath(payload), "-InstallDirectory", Path.GetFullPath(installDirectory), "-ParentId", parentId.ToString() }) info.ArgumentList.Add(argument);
         return info;
     }

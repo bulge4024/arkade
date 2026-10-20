@@ -33,7 +33,10 @@ public partial class MainWindow
     private void RefreshUpdateStatus()
     {
         UpdateSettingsStatus.Text = $"Installed: {appUpdates.CurrentVersion.ToString(3)} · Checks every 2 days while Arkade is open.\n" +
-            (appUpdates.State.LastChecked is { } date ? $"Last checked: {date.ToLocalTime():g}." : "Not checked yet.");
+            (appUpdates.State.LastChecked is { } date ? $"Last checked: {date.ToLocalTime():g}." : "Not checked yet.") + "\nApp folder: " + AppContext.BaseDirectory;
+        var result = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArcadeOS", "Updates", "last-install.txt");
+        try { if (File.Exists(result)) UpdateSettingsStatus.Text += "\n" + File.ReadAllText(result); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
     private async void CheckUpdatesClick(object sender, RoutedEventArgs e) => await CheckUpdatesAsync(true);
     private async Task CheckUpdatesAsync(bool manual)

@@ -26,3 +26,14 @@ Compress-Archive -LiteralPath $package -DestinationPath $zip -CompressionLevel O
 $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText((Join-Path $OutputDirectory "$packageName-win-x64.sha256"), $hash + '  ' + [IO.Path]::GetFileName($zip) + [Environment]::NewLine)
 Write-Host "Cabinet package: $zip"
+
+# Tiny bootstrap repair for cabinets running the original updater helper.
+$repair = Join-Path $OutputDirectory 'updater-repair'
+New-Item -ItemType Directory -Path $repair -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $repo 'scripts\Repair-ArkadeUpdate.ps1') -Destination $repair -Force
+Copy-Item -LiteralPath (Join-Path $repo 'packaging\Repair-ArkadeUpdate.cmd') -Destination $repair -Force
+Copy-Item -LiteralPath (Join-Path $repo 'ArcadeOS\Assets\ApplyUpdate.ps1') -Destination $repair -Force
+$repairZip = Join-Path $OutputDirectory 'Arkade-Updater-Repair.zip'
+Compress-Archive -Path (Join-Path $repair '*') -DestinationPath $repairZip -CompressionLevel Optimal -Force
+$repairHash = (Get-FileHash -LiteralPath $repairZip -Algorithm SHA256).Hash.ToLowerInvariant()
+[IO.File]::WriteAllText((Join-Path $OutputDirectory 'Arkade-Updater-Repair.sha256'), $repairHash + '  Arkade-Updater-Repair.zip' + [Environment]::NewLine)
