@@ -6,6 +6,64 @@ namespace ArcadeOS.Services;
 
 public static class EmulatorWindowMonitor
 {
+    public static async Task TrackSessionAsync(Process launcher, Action? ready, Action<IntPtr>? gameWindow, CancellationToken token)
+    {
+        var tracked = new Dictionary<uint, Process>(); bool announced = false; DateTimeOffset? emptySince = null;
+        try
+        {
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                foreach (var id in GetProcessTree((uint)launcher.Id))
+                {
+                    if (id == launcher.Id || tracked.ContainsKey(id)) continue;
+                    try { var child = Process.GetProcessById((int)id); _ = child.Handle; tracked[id] = child; }
+                    catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                }
+                var alive = tracked.Where(pair => !Exited(pair.Value)).Select(pair => pair.Key).ToHashSet();
+                if (!announced)
+                {
+                    IntPtr window = FindGameWindow(alive);
+                    if (window != IntPtr.Zero) { announced = true; gameWindow?.Invoke(window); ready?.Invoke(); }
+                }
+                if (launcher.HasExited && alive.Count == 0)
+                {
+                    emptySince ??= DateTimeOffset.UtcNow;
+                    // Allow detached children to appear in the snapshot after their launcher exits.
+                    if (DateTimeOffset.UtcNow - emptySince >= TimeSpan.FromSeconds(2)) return;
+                }
+                else emptySince = null;
+                await Task.Delay(100, token).ConfigureAwait(false);
+            }
+        }
+        finally { foreach (var child in tracked.Values) child.Dispose(); }
+    }
+    private static bool Exited(Process process)
+    {
+        try { return process.HasExited; }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { return true; }
+    }
+    private static IntPtr FindGameWindow(HashSet<uint> processes)
+    {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((window, _) =>
+        {
+            GetWindowThreadProcessId(window, out uint processId);
+            if (processes.Contains(processId) && IsWindowVisible(window) && !IsIconic(window) && GetWindowRect(window, out var bounds)
+                && bounds.Right - bounds.Left >= 160 && bounds.Bottom - bounds.Top >= 100)
+            {
+                try
+                {
+                    using var process = Process.GetProcessById((int)processId);
+                    if (process.ProcessName.ToLowerInvariant() is "emulatorlauncher" or "emulationstation" or "cmd" or "conhost" or "powershell" or "pwsh") return true;
+                }
+                catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { return true; }
+                found = window; return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
     public static async Task WaitForWindowAsync(Process launcher, Action ready, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -70,5 +128,6 @@ public static class EmulatorWindowMonitor
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool EnumWindows(EnumWindowCallback callback, IntPtr parameter);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsIconic(IntPtr window);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetWindowRect(IntPtr window, out WindowRect rectangle);
 }

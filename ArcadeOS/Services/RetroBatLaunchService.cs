@@ -39,22 +39,12 @@ public sealed class RetroBatLaunchService(RetroBatSettings settings)
         return info;
     }
 
-    public async Task<int> LaunchAsync(Game game, Action started, Action? windowReady = null, CancellationToken cancellationToken = default)
+    public async Task<int> LaunchAsync(Game game, Action started, Action? windowReady = null, CancellationToken cancellationToken = default, Action<IntPtr>? gameWindow = null)
     {
         using var process = Process.Start(CreateStartInfo(game)) ?? throw new IOException("RetroBat could not be started.");
         started();
-        using var monitorCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var monitor = windowReady is null ? Task.CompletedTask : Task.Run(() =>
-            EmulatorWindowMonitor.WaitForWindowAsync(process, windowReady, monitorCancellation.Token), monitorCancellation.Token);
-        try
-        {
-            await process.WaitForExitAsync(cancellationToken);
-            return process.ExitCode;
-        }
-        finally
-        {
-            monitorCancellation.Cancel();
-            try { await monitor; } catch (OperationCanceledException) { }
-        }
+        await Task.Run(() => EmulatorWindowMonitor.TrackSessionAsync(process, windowReady, gameWindow, cancellationToken), cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        return process.ExitCode;
     }
 }

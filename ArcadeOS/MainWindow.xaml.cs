@@ -112,7 +112,7 @@ public partial class MainWindow : Window
     private string? lastPresentedGame;
     private readonly DispatcherTimer metadataUiTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(500) };
     private DateTime lastMetadataBatch = DateTime.MinValue;
-    private readonly DispatcherTimer launchStatusTimer = new() { Interval = TimeSpan.FromSeconds(15) };
+    private readonly DispatcherTimer launchStatusTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     public static readonly DependencyProperty CoverCardHeightProperty = DependencyProperty.Register(
         nameof(CoverCardHeight), typeof(double), typeof(MainWindow), new PropertyMetadata(210d));
     public double CoverCardHeight { get => (double)GetValue(CoverCardHeightProperty); set => SetValue(CoverCardHeightProperty, value); }
@@ -124,12 +124,13 @@ public partial class MainWindow : Window
     public double SystemConsoleImageHeight { get => (double)GetValue(SystemConsoleImageHeightProperty); set => SetValue(SystemConsoleImageHeightProperty, value); }
     public MainWindow() : this(new WindowsPowerService()) { }
     public MainWindow(IComputerPowerService computerPower) : this(computerPower, new SecondaryDisplayService()) { }
-    public MainWindow(IComputerPowerService computerPower, SecondaryDisplayService secondaryDisplay, AppUpdateService? updateService = null)
+    public MainWindow(IComputerPowerService computerPower, SecondaryDisplayService secondaryDisplay, AppUpdateService? updateService = null, ControllerInputService? controllerService = null)
     {
+        this.controllerInput = controllerService ?? new ControllerInputService();
         this.appUpdates = updateService ?? new AppUpdateService();
         this.computerPower = computerPower;
         this.secondaryDisplay = secondaryDisplay;
-        InitializeComponent(); InitializeUpdates();
+        InitializeComponent(); InitializeUpdates(); InitializeControllers();
         DataContext = viewModel;
         MusicPanel.DataContext = music;
         NowPlayingDisplay.DataContext = music;
@@ -358,7 +359,8 @@ public partial class MainWindow : Window
         RefreshSecondaryDisplay();
         music.SetSuspended(true);
         viewModel.LaunchMessage = $"Starting {game.Title}…";
-        LaunchStatusText.Text = "Preparing your game…";
+        LaunchPhaseText.Text = "NOW LAUNCHING"; LaunchStatusText.Text = "Preparing your game…";
+        LaunchWindowBackdrop.SetBackgroundMode(this, true);
         LaunchSplash.Visibility = Visibility.Visible;
         launchStatusTimer.Start();
         try
@@ -372,13 +374,17 @@ public partial class MainWindow : Window
                     if (!launching || windowClosed) return;
                     viewModel.RecordPlayed(game); recordedPlay = true;
                     launchStatusTimer.Stop();
-                    Hide();
-                    LaunchSplash.Visibility = Visibility.Collapsed;
-                })), metadataCancellation.Token);
+                    LaunchStatusText.Text = "Your game is running. Arkade is ready in the background.";
+                })), metadataCancellation.Token, handle => Dispatcher.BeginInvoke(new Action(() =>
+                { if (launching && !windowClosed) LaunchWindowBackdrop.PlaceBehindGame(this, handle); })));
             if (windowClosed) return;
             if (code == 0)
             {
                 if (!recordedPlay) viewModel.RecordPlayed(game);
+                LaunchWindowBackdrop.SetBackgroundMode(this, false);
+                LaunchPhaseText.Text = "RETURNING TO ARKADE"; LaunchStatusText.Text = "Restoring your game library…";
+                Show(); Activate();
+                await Task.Delay(TimeSpan.FromSeconds(3), metadataCancellation.Token);
                 CloseDetails(sender, e);
                 viewModel.Status = $"Welcome back. {game.Title} is still selected.";
             }
@@ -394,6 +400,7 @@ public partial class MainWindow : Window
             if (!windowClosed) RefreshSecondaryDisplay();
             if (!windowClosed) music.SetSuspended(false);
             launchStatusTimer.Stop();
+            LaunchWindowBackdrop.SetBackgroundMode(this, false);
             LaunchSplash.Visibility = Visibility.Collapsed;
             if (!windowClosed)
             {
@@ -575,6 +582,7 @@ public partial class MainWindow : Window
     }
     private void ShowHelp(object sender, RoutedEventArgs e)
     {
+        ControllerSettingsPanel.Visibility = Visibility.Collapsed;
         UpdateSettingsPanel.Visibility = Visibility.Collapsed;
         SecondaryScreenPanel.Visibility = Visibility.Collapsed;
         WindowsStartupPanel.Visibility = Visibility.Collapsed;
@@ -588,6 +596,7 @@ public partial class MainWindow : Window
     }
     private void ShowSettings(object sender, RoutedEventArgs e)
     {
+        ControllerSettingsPanel.Visibility = Visibility.Visible;
         UpdateSettingsPanel.Visibility = Visibility.Visible; RefreshUpdateStatus();
         SecondaryScreenPanel.Visibility = Visibility.Visible;
         RefreshSecondarySetting();
@@ -693,7 +702,7 @@ public partial class MainWindow : Window
         if (Directory.Exists(music.Folder)) dialog.InitialDirectory = music.Folder;
         if (dialog.ShowDialog(this) == true) await music.LoadFolderAsync(dialog.FolderName);
     }
-    private Button[] UtilityButtons => [FullscreenButton, RefreshLibraryButton, CheckUpdatesButton, WindowsStartupButton, SecondaryScreenButton, MusicPreviousButton, MusicPlayButton, MusicNextButton,
+    private Button[] UtilityButtons => [FullscreenButton, RefreshLibraryButton, CheckUpdatesButton, ControllerSetupButton, WindowsStartupButton, SecondaryScreenButton, MusicPreviousButton, MusicPlayButton, MusicNextButton,
         MusicFolderButton, MusicQuieterButton, MusicLouderButton, MusicAnimationButton, UtilityBackButton];
     private void OpenUtility()
     {
@@ -746,6 +755,7 @@ public partial class MainWindow : Window
     }
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
+        if (ControllerOverlay.Visibility == Visibility.Visible) { HandleControllerSetupKey(e); return; }
         if (UpdateOverlay.Visibility == Visibility.Visible) { HandleUpdateKey(e); return; }
         if (launching) { e.Handled = true; return; }
         if (e.Key == Key.F11) { if (!e.IsRepeat) ToggleFullscreenClick(sender, e); e.Handled = true; return; }

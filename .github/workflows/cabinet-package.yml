@@ -18,6 +18,8 @@ jobs:
           dotnet-version: 10.0.x
       - name: Test update feed, verification and schedule
         run: dotnet run --project tests/UpdaterChecks/UpdaterChecks.csproj -c Release
+      - name: Test controller navigation and mappings
+        run: dotnet run --project tests/ControllerChecks/ControllerChecks.csproj -c Release
       - name: Test isolated installer with Windows PowerShell
         shell: powershell
         run: ./tests/UpdaterChecks/InstallChecks.ps1

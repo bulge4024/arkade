@@ -228,6 +228,10 @@
       <Button x:Name="CheckUpdatesButton" Content="CHECK FOR UPDATES" Click="CheckUpdatesClick" HorizontalAlignment="Left"/>
       <TextBlock x:Name="UpdateSettingsStatus" Foreground="#A8B4C4" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
      </StackPanel>
+     <StackPanel x:Name="ControllerSettingsPanel" Margin="0,12,0,4" Visibility="Collapsed">
+      <Button x:Name="ControllerSetupButton" Content="JOYSTICK / CONTROLLER SETUP" Click="OpenControllerSetup" HorizontalAlignment="Left"/>
+      <TextBlock Text="USB arcade sticks, gamepads and keyboard. Map cabinet buttons here." Foreground="#A8B4C4" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
+     </StackPanel>
      <StackPanel x:Name="WindowsStartupPanel" Margin="0,12,0,0" Visibility="Collapsed">
       <Button x:Name="WindowsStartupButton" Content="START WITH WINDOWS: OFF" Click="WindowsStartupClick" HorizontalAlignment="Left"/>
       <TextBlock x:Name="WindowsStartupStatus" Text="Open Arkade automatically when you sign in to Windows." Foreground="#A8B4C4" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
@@ -260,6 +264,13 @@
     <TextBlock Text="JOYSTICK  CHOOSE     SELECT  CONFIRM     BACK  CANCEL" Foreground="#A8B4C4" FontSize="10" TextWrapping="Wrap" Margin="0,18,0,0"/>
    </StackPanel>
   </Border>
+  <Border x:Name="ControllerOverlay" Background="#FC101722" BorderBrush="#EAC574" BorderThickness="1" CornerRadius="15" Margin="22,16" Padding="28" Visibility="Collapsed" Panel.ZIndex="98">
+   <Grid MaxWidth="600"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <TextBlock Text="CABINET CONTROLS" FontSize="26" FontWeight="Black" Foreground="#EAC574"/>
+    <StackPanel Grid.Row="1" VerticalAlignment="Center"><TextBlock x:Name="ControllerDevices" FontSize="14" Foreground="#EAC574" TextWrapping="Wrap" Margin="0,20,0,20"/><TextBlock x:Name="ControllerMessage" TextWrapping="Wrap" FontSize="16"/></StackPanel>
+    <StackPanel Grid.Row="2"><Button x:Name="ControllerMapButton" Content="MAP BUTTONS" Click="BeginControllerMapping" Margin="0,0,0,12"/><Button x:Name="ControllerBackButton" Content="BACK" Click="CloseControllerSetup"/></StackPanel>
+   </Grid>
+  </Border>
   <Border x:Name="UpdateOverlay" Background="#FC101722" BorderBrush="#EAC574" BorderThickness="1" CornerRadius="15" Margin="22,16" Padding="28" Visibility="Collapsed" Panel.ZIndex="99">
    <Grid MaxWidth="640"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <TextBlock x:Name="UpdateTitle" Text="ARKADE UPDATE" FontSize="25" FontWeight="Black" Foreground="#EAC574" TextWrapping="Wrap"/>
@@ -278,7 +289,7 @@
    <Viewbox Stretch="Uniform" MaxWidth="600" Margin="38,90">
     <StackPanel Width="460">
      <Grid Height="260" Margin="0,0,0,28"><TextBlock Text="{Binding SelectedGame.Symbol}" FontSize="100" Foreground="#EAC574" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding SelectedGame.ArtworkPath}" Stretch="Uniform"/></Grid>
-     <TextBlock Text="NOW LAUNCHING" Foreground="#EAC574" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+     <TextBlock x:Name="LaunchPhaseText" Text="NOW LAUNCHING" Foreground="#EAC574" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
      <TextBlock Text="{Binding SelectedGame.Title}" FontSize="34" FontWeight="Black" TextWrapping="Wrap" TextAlignment="Center" Margin="0,12,0,10"/>
      <TextBlock Text="{Binding SelectedGame.Platform}" Foreground="#B7C4D6" FontSize="14" HorizontalAlignment="Center"/>
      <ProgressBar IsIndeterminate="True" Height="3" Foreground="#EAC574" Background="#293141" BorderThickness="0" Margin="45,30,45,18"/>

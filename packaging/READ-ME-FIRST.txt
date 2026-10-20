@@ -78,3 +78,9 @@ The screen follows console/game highlights and releases the DMD for pinball.
 
 IN-APP UPDATES
 Settings > Check for updates checks the public bulge4024/arkade GitHub releases. Arkade also checks every two days while open and browsing, then asks before downloading. Select Download and Install to verify the package, close Arkade, replace the installed app and reopen. The existing RetroBat configuration and your app-data settings/history remain intact. The previous app folder is retained beside the installation as a backup. Updates require internet and write access to the installed folder; the normal per-user installation needs no administrator rights. Older 0.1.x builds need one manual installation of an updater-enabled build first.
+
+JOYSTICKS AND GAMEPADS
+Arkade now reads generic USB arcade encoders and gamepads directly using Windows joystick input, plus Xbox-compatible controllers. Keyboard controls remain available. Use Settings > Joystick / Controller Setup > Map Buttons to assign Select, Back, Start and Menu. Mappings are saved per detected controller model. Default generic buttons are 1 Select, 2 Back, 8 Start, 7 Menu. Stick/D-pad directions work automatically. Release held controls when returning from a game to avoid accidental selections.
+
+GAME TRANSITIONS
+The loading screen stays behind the emulator throughout startup and gameplay, without forcing a fast game to wait. Slow-start guidance appears after 30 seconds. On exit Arkade shows a three-second return transition and restores the selected game. Pinball's secondary DMD remains released while the game runs.
