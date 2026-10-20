@@ -25,6 +25,7 @@ try {
     # A missing payload must leave the installed version untouched.
     & $powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $helper -Payload (Join-Path $root 'missing') -InstallDirectory $installed -ParentId 0 -NoLaunch
     if ($LASTEXITCODE -eq 0 -or [IO.File]::ReadAllText((Join-Path $installed 'Arkade.exe')) -ne 'updated fixture - not executable') { throw 'Failed preparation damaged the installation.' }
+    $global:LASTEXITCODE = 0 # The deliberately failing child above was expected and asserted.
     Write-Output 'PASS: Windows PowerShell 5 installer, staged replacement, exact settings preservation, stale file removal, previous-version backup and safe preparation failure. No real app was launched.'
 }
 finally {
