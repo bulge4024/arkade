@@ -9,13 +9,18 @@ using ArcadeOS.Models;
 namespace ArcadeOS.Services;
 
 public sealed record AutomaticMetadataEntry(CachedGameMetadata? Metadata, DateTimeOffset RetryAfter, string Status, int MatcherVersion = 0);
-public sealed record MetadataProgress(int Completed, int Total, bool IsRunning);
+public sealed record MetadataProgress(int Completed, int Total, bool IsRunning, string CurrentGame = "", int Matched = 0,
+    int Artwork = 0, int Unmatched = 0, int Failed = 0, string? LastError = null);
+public sealed record MetadataLibraryStatus(int Total, int Covers, int Unsupported, int Waiting, int Deferred);
 
 public sealed class AutomaticMetadataService
 {
     private readonly string directory;
     private readonly IGameMetadataProvider provider;
-    private readonly SemaphoreSlim worker = new(1, 1);
+    private readonly object queueLock = new();
+    private Task? activeWorker;
+    private IReadOnlyList<Game>? queuedGames;
+    private bool queuedRetry;
     private readonly ConcurrentDictionary<string, AutomaticMetadataEntry> entries = new();
     private readonly ConcurrentDictionary<string, byte> missing = new();
     private MetadataProgress progress = new(0, 0, false);
@@ -78,40 +83,98 @@ public sealed class AutomaticMetadataService
         }).ToArray();
         return new(games, scan.Warnings);
     }
-    public async Task EnrichAsync(IReadOnlyList<Game> games, CancellationToken cancellationToken = default)
+    public Task EnrichAsync(IReadOnlyList<Game> games, CancellationToken cancellationToken = default, bool retryMissing = false)
     {
-        if (!await worker.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return;
+        lock (queueLock)
+        {
+            queuedGames = games; queuedRetry |= retryMissing;
+            return activeWorker ??= Task.Run(() => DrainQueueAsync(cancellationToken), CancellationToken.None);
+        }
+    }
+    private async Task DrainQueueAsync(CancellationToken token)
+    {
         try
         {
-            var pending = games.Where(NeedsLookup).ToArray();
-            Volatile.Write(ref progress, new(0, pending.Length, pending.Length > 0));
-            int completed = 0;
+            while (true)
+            {
+                IReadOnlyList<Game> games; bool retry;
+                lock (queueLock)
+                {
+                    if (queuedGames is null) { activeWorker = null; return; }
+                    games = queuedGames; queuedGames = null; retry = queuedRetry; queuedRetry = false;
+                }
+                token.ThrowIfCancellationRequested();
+                if (retry)
+                    foreach (var game in games.Where(g => g.SystemId is not null && provider.Supports(g.SystemId)))
+                    {
+                        var entry = ReadEntry(game);
+                        if (entry is not null && (entry.Metadata is null || !HasCover(game, entry)))
+                        {
+                            entry = entry with { RetryAfter = DateTimeOffset.MinValue }; Remember(game, entry);
+                            await WriteAtomicAsync(EntryPath(game), JsonSerializer.Serialize(entry), token).ConfigureAwait(false);
+                        }
+                    }
+                await EnrichBatchAsync(games, token).ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            lock (queueLock) { activeWorker = null; queuedGames = null; queuedRetry = false; }
+            throw;
+        }
+    }
+    private bool HasCover(Game game, AutomaticMetadataEntry? entry) => File.Exists(game.ArtworkPath)
+        || entry?.Metadata?.ArtworkFile is { } cover && File.Exists(Path.Combine(directory, cover));
+    public MetadataLibraryStatus GetLibraryStatus(IReadOnlyList<Game> games)
+    {
+        int covers = 0, unsupported = 0, waiting = 0, deferred = 0;
+        foreach (var game in games)
+        {
+            var entry = ReadEntry(game);
+            if (HasCover(game, entry)) covers++;
+            if (game.SystemId is null || !provider.Supports(game.SystemId)) { unsupported++; continue; }
+            if (NeedsLookup(game)) waiting++;
+            else if (!HasCover(game, entry) && entry?.RetryAfter > DateTimeOffset.UtcNow) deferred++;
+        }
+        return new(games.Count, covers, unsupported, waiting, deferred);
+    }
+    private async Task EnrichBatchAsync(IReadOnlyList<Game> games, CancellationToken cancellationToken)
+    {
+        var pending = games.Where(NeedsLookup).ToArray();
+        // Keep the last useful batch result instead of erasing it on each 30-second folder scan.
+        if (pending.Length == 0) return;
+        Volatile.Write(ref progress, new(0, pending.Length, true));
+        int completed = 0, matched = 0, artwork = 0, unmatched = 0, failed = 0; string? lastError = null;
+        try
+        {
             foreach (var game in pending)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                Volatile.Write(ref progress, new(completed, pending.Length, true, game.Platform + " / " + game.Title, matched, artwork, unmatched, failed, lastError));
                 var entry = ReadEntry(game);
                 try
                 {
                     var result = await provider.FindAsync(game, cancellationToken).ConfigureAwait(false);
                     if (result is null) result = await provider.FindRelaxedAsync(game, cancellationToken).ConfigureAwait(false);
                     var retry = DateTimeOffset.UtcNow + (result?.ArtworkFile is not null ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24));
-                    entry = new(result, retry, result is null ? "Unmatched" : "Matched", 5);
+                    entry = new(result ?? entry?.Metadata, retry, result is null ? "Unmatched" : "Matched", 5);
                     await WriteAtomicAsync(EntryPath(game), JsonSerializer.Serialize(entry), cancellationToken).ConfigureAwait(false);
                     Remember(game, entry);
-                    if (result is not null) MetadataUpdated?.Invoke();
+                    if (result is null) unmatched++; else { matched++; if (HasCover(game, entry)) artwork++; MetadataUpdated?.Invoke(); }
                 }
-                catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or JsonException
-                    || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+                catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or JsonException
+                    or System.Text.RegularExpressions.RegexMatchTimeoutException || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
                 {
-                    entry = new(entry?.Metadata, DateTimeOffset.UtcNow.AddMinutes(5), "Retry pending");
+                    failed++; lastError = ex is OperationCanceledException ? "Metadata server timed out; retrying in 5 minutes." : ex.Message;
+                    entry = new(entry?.Metadata, DateTimeOffset.UtcNow.AddMinutes(5), "Retry pending: " + lastError, 5);
                     Remember(game, entry);
                     try { await WriteAtomicAsync(EntryPath(game), JsonSerializer.Serialize(entry), cancellationToken).ConfigureAwait(false); }
                     catch (Exception writeError) when (writeError is IOException or UnauthorizedAccessException) { }
                 }
-                finally { Volatile.Write(ref progress, new(++completed, pending.Length, true)); }
+                finally { Volatile.Write(ref progress, new(++completed, pending.Length, true, game.Platform + " / " + game.Title, matched, artwork, unmatched, failed, lastError)); }
             }
         }
-        finally { var last = Progress; Volatile.Write(ref progress, last with { IsRunning = false }); worker.Release(); }
+        finally { var last = Progress; Volatile.Write(ref progress, last with { IsRunning = false }); }
     }
     private bool NeedsLookup(Game game)
     {

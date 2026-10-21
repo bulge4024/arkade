@@ -327,15 +327,16 @@ public partial class MainWindow : Window
         var progress = automaticMetadata.Progress;
         viewModel.IsUpdating = refreshingLibrary || applyingMetadataBatch || progress.IsRunning;
         viewModel.UpdateMessage = refreshingLibrary ? "Updating library… You can keep browsing."
-            : progress.IsRunning ? $"Updating game info  {progress.Completed:N0} / {progress.Total:N0}  •  You can keep browsing."
+            : progress.IsRunning ? $"Game info {progress.Completed:N0}/{progress.Total:N0} · covers {progress.Artwork:N0} · {progress.CurrentGame}"
             : applyingMetadataBatch ? "Applying artwork updates…" : "";
+        UpdateMetadataSettingsStatus();
     }
-    private async Task EnrichLibraryMetadataAsync(IReadOnlyList<ArcadeOS.Models.Game> games)
+    private async Task EnrichLibraryMetadataAsync(IReadOnlyList<ArcadeOS.Models.Game> games, bool retryMissing = false)
     {
-        try { await Task.Run(() => automaticMetadata.EnrichAsync(games, metadataCancellation.Token), metadataCancellation.Token); }
+        try { await Task.Run(() => automaticMetadata.EnrichAsync(games, metadataCancellation.Token, retryMissing), metadataCancellation.Token); }
         catch (OperationCanceledException) { }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Net.Http.HttpRequestException)
-        { System.Diagnostics.Trace.TraceWarning($"Automatic metadata lookup paused: {ex.Message}"); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or System.Net.Http.HttpRequestException)
+        { metadataWorkerError = ex.Message; System.Diagnostics.Trace.TraceWarning($"Automatic metadata lookup paused: {ex.Message}"); }
     }
     private async void RefreshLibraryClick(object sender, RoutedEventArgs e)
     {
@@ -595,6 +596,7 @@ public partial class MainWindow : Window
     }
     private void ShowHelp(object sender, RoutedEventArgs e)
     {
+        MetadataSettingsPanel.Visibility = Visibility.Collapsed;
         RemoteLibraryButton.Visibility = Visibility.Collapsed;
         ControllerSettingsPanel.Visibility = Visibility.Collapsed;
         UpdateSettingsPanel.Visibility = Visibility.Collapsed;
@@ -610,6 +612,7 @@ public partial class MainWindow : Window
     }
     private void ShowSettings(object sender, RoutedEventArgs e)
     {
+        MetadataSettingsPanel.Visibility = Visibility.Visible;
         RemoteLibraryButton.Visibility = Visibility.Visible;
         ControllerSettingsPanel.Visibility = Visibility.Visible;
         UpdateSettingsPanel.Visibility = Visibility.Visible; RefreshUpdateStatus();
@@ -717,7 +720,7 @@ public partial class MainWindow : Window
         if (Directory.Exists(music.Folder)) dialog.InitialDirectory = music.Folder;
         if (dialog.ShowDialog(this) == true) await music.LoadFolderAsync(dialog.FolderName);
     }
-    private Button[] UtilityButtons => [FullscreenButton, RefreshLibraryButton, RemoteLibraryButton, CheckUpdatesButton, ControllerSetupButton, WindowsStartupButton, SecondaryScreenButton, MusicPreviousButton, MusicPlayButton, MusicNextButton,
+    private Button[] UtilityButtons => [FullscreenButton, RefreshLibraryButton, RemoteLibraryButton, RetryMetadataButton, CheckUpdatesButton, ControllerSetupButton, WindowsStartupButton, SecondaryScreenButton, MusicPreviousButton, MusicPlayButton, MusicNextButton,
         MusicFolderButton, MusicQuieterButton, MusicLouderButton, MusicAnimationButton, UtilityBackButton];
     private void OpenUtility()
     {

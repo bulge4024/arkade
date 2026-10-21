@@ -16,7 +16,14 @@ public sealed class LibretroMetadataProvider(HttpClient client, string cacheDire
         ["gb"] = "Nintendo - Game Boy", ["gbc"] = "Nintendo - Game Boy Color", ["gba"] = "Nintendo - Game Boy Advance",
         ["n64"] = "Nintendo - Nintendo 64", ["mastersystem"] = "Sega - Master System - Mark III",
         ["sega32x"] = "Sega - 32X", ["32x"] = "Sega - 32X",
-        ["gamegear"] = "Sega - Game Gear", ["psx"] = "Sony - PlayStation"
+        ["gamegear"] = "Sega - Game Gear", ["psx"] = "Sony - PlayStation",
+        ["dreamcast"] = "Sega - Dreamcast", ["saturn"] = "Sega - Saturn", ["segacd"] = "Sega - Mega-CD - Sega CD",
+        ["gamecube"] = "Nintendo - GameCube", ["nds"] = "Nintendo - Nintendo DS",
+        ["ps2"] = "Sony - PlayStation 2", ["psp"] = "Sony - PlayStation Portable",
+        ["atari2600"] = "Atari - 2600", ["atari7800"] = "Atari - 7800", ["jaguar"] = "Atari - Jaguar", ["lynx"] = "Atari - Lynx",
+        ["3do"] = "The 3DO Company - 3DO", ["pcengine"] = "NEC - PC Engine - TurboGrafx 16",
+        ["ngpc"] = "SNK - Neo Geo Pocket Color", ["ngp"] = "SNK - Neo Geo Pocket",
+        ["wonderswan"] = "Bandai - WonderSwan", ["wonderswancolor"] = "Bandai - WonderSwan Color", ["virtualboy"] = "Nintendo - Virtual Boy"
     };
     private static readonly string[] Fields = ["developer", "publisher", "genre", "releaseyear", "maxusers"];
     private sealed record PlatformDatabase(Dictionary<string, Dictionary<string, string>> Rows, Dictionary<string, string[]> Names);
@@ -38,6 +45,10 @@ public sealed class LibretroMetadataProvider(HttpClient client, string cacheDire
                 string text = await GetDatabaseAsync(platform, field, cancellationToken).ConfigureAwait(false);
                 ParseDat(text, rows);
             }
+            // Some disc consoles only have a title catalog, rather than editorial metadata.
+            // This still supplies exact game names for box-art lookup.
+            if (rows.Count == 0 && platform is "Sega - Saturn" or "Nintendo - GameCube" or "Sega - Mega-CD - Sega CD" or "The 3DO Company - 3DO")
+                ParseDat(await GetDatabaseAsync(platform, "redump", cancellationToken).ConfigureAwait(false), rows);
             database = new(rows, rows.Keys.GroupBy(MetadataNames.Normalize).ToDictionary(group => group.Key, group => group.ToArray()));
             loadedDatabases[platform] = database;
         }
@@ -106,7 +117,11 @@ public sealed class LibretroMetadataProvider(HttpClient client, string cacheDire
         if (File.Exists(path)) return await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
         string url = $"https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/{field}/{Uri.EscapeDataString(platform)}.dat";
         using var response = await client.GetAsync(url, cancellationToken).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.NotFound) return "";
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            await AutomaticMetadataService.WriteAtomicAsync(path, "", cancellationToken).ConfigureAwait(false);
+            return "";
+        }
         response.EnsureSuccessStatusCode();
         string text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (text.Length > 16 * 1024 * 1024) throw new InvalidDataException("Metadata database exceeded its size limit.");
