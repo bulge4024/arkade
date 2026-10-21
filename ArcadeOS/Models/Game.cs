@@ -6,6 +6,9 @@ public sealed record Game(string Title, string Category, string Year, string Pla
     public DateTimeOffset? LastPlayed { get; init; }
     public string? RomPath { get; init; }
     public string? SystemId { get; init; }
+    public string? SystemName { get; init; }
+    public string? SystemManufacturer { get; init; }
+    public string? SystemAliases { get; init; }
     public string? VideoPath { get; init; }
     public string? MarqueePath { get; init; }
     public string? FanartPath { get; init; }

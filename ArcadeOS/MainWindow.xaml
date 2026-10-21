@@ -3,6 +3,7 @@
  Title="Arkade" Icon="Assets/Arkade.ico" Width="760" Height="1020" MinWidth="480" MinHeight="700" WindowStartupLocation="CenterScreen"
  Background="#090D15" Foreground="#F5F1E8" FontFamily="Segoe UI" PreviewKeyDown="OnKeyDown">
  <Window.Resources>
+  <controls:SafeArtworkConverter x:Key="SafeArtwork"/>
   <DrawingImage x:Key="RecentArtwork">
    <DrawingImage.Drawing><DrawingGroup>
     <GeometryDrawing Brush="Transparent" Geometry="M0,0 L280,0 280,166 0,166 Z"/>
@@ -67,7 +68,7 @@
     <ListBox.ItemTemplate><DataTemplate>
      <Grid Height="{Binding SystemCardHeight, RelativeSource={RelativeSource AncestorType=Window}}" ClipToBounds="True">
       <Grid.Background><LinearGradientBrush StartPoint="0,1" EndPoint="1,0"><GradientStop Color="#131D2C"/><GradientStop Color="#263144" Offset="1"/></LinearGradientBrush></Grid.Background>
-      <Image Source="{Binding ArtworkPath}" Stretch="UniformToFill" Opacity="0.10"/>
+      <Image Source="{Binding ArtworkPath, Converter={StaticResource SafeArtwork}}" Stretch="UniformToFill" Opacity="0.10"/>
       <Image Stretch="Uniform" Height="{Binding SystemConsoleImageHeight, RelativeSource={RelativeSource AncestorType=Window}}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="16,24,16,0"><Image.Style><Style TargetType="Image"><Setter Property="Source" Value="{Binding ConsoleImagePath}"/><Style.Triggers><DataTrigger Binding="{Binding Name}" Value="Last played"><Setter Property="Source" Value="{StaticResource RecentArtwork}"/></DataTrigger></Style.Triggers></Style></Image.Style></Image>
       <Grid Margin="17"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
        <TextBlock Text="{Binding CountLabel}" Foreground="{Binding Accent}" FontWeight="Bold" FontSize="10"/>
@@ -115,7 +116,7 @@
     <Grid>
     <Grid x:Name="FeaturedPanel" DataContext="{Binding SelectedGame}">
      <Grid.Background><LinearGradientBrush StartPoint="0,1" EndPoint="1,0"><GradientStop Color="#101824"/><GradientStop Color="#3D392B" Offset="1"/></LinearGradientBrush></Grid.Background>
-     <Image Source="{Binding BackgroundArtworkPath}" Stretch="UniformToFill" Opacity="0.32"/>
+     <Image Source="{Binding BackgroundArtworkPath, Converter={StaticResource SafeArtwork}}" Stretch="UniformToFill" Opacity="0.32"/>
      <MediaElement x:Name="GamePreviewVideo" LoadedBehavior="Manual" UnloadedBehavior="Close" IsMuted="True" Volume="0" ScrubbingEnabled="False" Stretch="UniformToFill" Opacity="0" IsHitTestVisible="False" Focusable="False" MediaOpened="OnGamePreviewOpened" MediaEnded="OnGamePreviewEnded" MediaFailed="OnGamePreviewFailed"/>
      <Border IsHitTestVisible="False"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#E6090D15"/><GradientStop Color="#A6090D15" Offset="0.55"/><GradientStop Color="#59090D15" Offset="1"/></LinearGradientBrush></Border.Background></Border>
      <Grid Margin="20,16">
@@ -134,7 +135,7 @@
        </StackPanel>
       </Grid>
       <Border Grid.Column="1" Background="#B0090D15" CornerRadius="8" Margin="8,0,0,0" Padding="6">
-       <Grid><TextBlock Text="{Binding Symbol}" FontSize="60" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding ArtworkPath}" Stretch="Uniform"/></Grid>
+       <Grid><TextBlock Text="{Binding Symbol}" FontSize="60" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding ArtworkPath, Converter={StaticResource SafeArtwork}}" Stretch="Uniform"/></Grid>
       </Border>
      </Grid>
     </Grid>
@@ -179,7 +180,7 @@
      <Grid Height="{Binding CoverCardHeight, RelativeSource={RelativeSource AncestorType=Window}}">
       <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="47"/></Grid.RowDefinitions>
       <Border Background="#101722" Margin="4" CornerRadius="6" ClipToBounds="True">
-       <Grid><Ellipse Width="100" Height="100" Stroke="{Binding Accent}" Opacity="0.2"/><TextBlock Text="{Binding Symbol}" Foreground="{Binding Accent}" FontSize="48" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding ArtworkPath}" Stretch="Uniform"/></Grid>
+       <Grid><Ellipse Width="100" Height="100" Stroke="{Binding Accent}" Opacity="0.2"/><TextBlock Text="{Binding Symbol}" Foreground="{Binding Accent}" FontSize="48" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding ArtworkPath, Converter={StaticResource SafeArtwork}}" Stretch="Uniform"/></Grid>
       </Border>
       <StackPanel Grid.Row="1" Margin="8,3,6,0"><TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Platform}" FontSize="9" Foreground="#96A1B3" Margin="0,4,0,0"/></StackPanel>
      </Grid>
@@ -205,7 +206,7 @@
     <ScrollViewer x:Name="DetailsScroll" VerticalScrollBarVisibility="Hidden">
      <StackPanel DataContext="{Binding SelectedGame}">
       <TextBlock Text="GAME DETAILS" Foreground="#EAC574" FontSize="10" FontWeight="Bold"/>
-      <Image Source="{Binding ArtworkPath}" Height="210" Stretch="Uniform" HorizontalAlignment="Left" Margin="0,20,0,18"/>
+      <Image Source="{Binding ArtworkPath, Converter={StaticResource SafeArtwork}}" Height="210" Stretch="Uniform" HorizontalAlignment="Left" Margin="0,20,0,18"/>
       <TextBlock Text="{Binding Title}" FontSize="30" FontWeight="Black" TextWrapping="Wrap"/>
       <TextBlock Text="{Binding Tagline}" Foreground="#AAB7C9" Margin="0,8,0,0" TextWrapping="Wrap"/>
       <TextBlock Text="{Binding MetadataLine}" Foreground="#EAC574" Margin="0,12,0,0" TextWrapping="Wrap"/>
@@ -291,11 +292,11 @@
   <controls:DownloadProgressWidget x:Name="DownloadDisplay" Width="{Binding Width, ElementName=NowPlayingDisplay}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,22,0" Visibility="Collapsed" Panel.ZIndex="201"/>
   <controls:NowPlayingWidget x:Name="NowPlayingDisplay" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,22,0" Panel.ZIndex="90"/>
   <Grid x:Name="LaunchSplash" Background="#090D15" Panel.ZIndex="200" Visibility="Collapsed" AutomationProperties.Name="Starting selected game">
-   <Image Source="{Binding SelectedGame.ArtworkPath}" Stretch="UniformToFill" Opacity="0.08"/>
+   <Image Source="{Binding SelectedGame.ArtworkPath, Converter={StaticResource SafeArtwork}}" Stretch="UniformToFill" Opacity="0.08"/>
    <Image Source="Assets/Arkade-logo.png" Width="190" Height="60" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,18,0,0" AutomationProperties.Name="Arkade logo"/>
    <Viewbox Stretch="Uniform" MaxWidth="600" Margin="38,90">
     <StackPanel Width="460">
-     <Grid Height="260" Margin="0,0,0,28"><TextBlock Text="{Binding SelectedGame.Symbol}" FontSize="100" Foreground="#EAC574" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding SelectedGame.ArtworkPath}" Stretch="Uniform"/></Grid>
+     <Grid Height="260" Margin="0,0,0,28"><TextBlock Text="{Binding SelectedGame.Symbol}" FontSize="100" Foreground="#EAC574" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding SelectedGame.ArtworkPath, Converter={StaticResource SafeArtwork}}" Stretch="Uniform"/></Grid>
      <TextBlock x:Name="LaunchPhaseText" Text="NOW LAUNCHING" Foreground="#EAC574" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
      <TextBlock Text="{Binding SelectedGame.Title}" FontSize="34" FontWeight="Black" TextWrapping="Wrap" TextAlignment="Center" Margin="0,12,0,10"/>
      <TextBlock Text="{Binding SelectedGame.Platform}" Foreground="#B7C4D6" FontSize="14" HorizontalAlignment="Center"/>

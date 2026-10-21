@@ -6,15 +6,44 @@ using ArcadeOS.Models;
 using SkiaSharp;
 namespace ArcadeOS.Services;
 
-public sealed class CabinetMetadataProvider(HttpClient client, string directory) : IGameMetadataProvider
+public sealed class CabinetMetadataProvider : IGameMetadataProvider, IMetadataStatusProvider
 {
-    private readonly LibretroMetadataProvider consoles = new(client, directory);
-    private readonly PinballMetadataProvider pinball = new(client, directory);
-    private readonly MameMetadataProvider arcade = new(client, directory);
-    private IGameMetadataProvider For(Game game) => game.SystemId == "vpinball" ? pinball : game.SystemId == "mame" ? arcade : consoles;
-    public bool Supports(string systemId) => systemId == "vpinball" || arcade.Supports(systemId) || consoles.Supports(systemId);
-    public Task<CachedGameMetadata?> FindAsync(Game game, CancellationToken token) => For(game).FindAsync(game, token);
-    public Task<CachedGameMetadata?> FindRelaxedAsync(Game game, CancellationToken token) => For(game).FindRelaxedAsync(game, token);
+    private readonly LibretroMetadataProvider consoles;
+    private readonly PinballMetadataProvider pinball;
+    private readonly MameMetadataProvider arcade;
+    private readonly BroadMetadataProvider broad;
+    private readonly string directory;
+    public event Action<string>? StatusChanged;
+    public CabinetMetadataProvider(HttpClient client, string directory)
+    {
+        this.directory = directory; consoles = new(client, directory); pinball = new(client, directory); arcade = new(client, directory); broad = new(client, directory);
+        broad.StatusChanged += message => StatusChanged?.Invoke(message);
+    }
+    public bool Supports(string systemId) => !string.IsNullOrWhiteSpace(systemId);
+    public Task<CachedGameMetadata?> FindAsync(Game game, CancellationToken token) => FindCoreAsync(game, false, token);
+    public Task<CachedGameMetadata?> FindRelaxedAsync(Game game, CancellationToken token) => FindCoreAsync(game, true, token);
+    private async Task<CachedGameMetadata?> FindCoreAsync(Game game, bool relaxed, CancellationToken token)
+    {
+        IGameMetadataProvider primary = game.SystemId == "vpinball" ? pinball : arcade.Supports(game.SystemId ?? "") ? arcade : consoles;
+        CachedGameMetadata? original = null;
+        try
+        {
+            original = relaxed ? await primary.FindRelaxedAsync(game, token).ConfigureAwait(false) : await primary.FindAsync(game, token).ConfigureAwait(false);
+            if (original?.ArtworkFile is not null || game.SystemId == "vpinball") return original;
+        }
+        catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex) && !token.IsCancellationRequested)
+        { MetadataDiagnostics.Record(directory, ex, "Primary lookup: " + game.SystemId + "/" + game.Title); }
+        CachedGameMetadata? fallback;
+        var broadGame = original?.Title is { Length: > 0 } ? game with { Title = original.Title } : game;
+        try { fallback = relaxed ? await broad.FindRelaxedAsync(broadGame, token).ConfigureAwait(false) : await broad.FindAsync(broadGame, token).ConfigureAwait(false); }
+        catch (Exception ex) when (original is not null && MetadataDiagnostics.Recoverable(ex) && !token.IsCancellationRequested)
+        { MetadataDiagnostics.Record(directory, ex, "Broad fallback: " + game.Title); return original; }
+        if (original is null) return fallback;
+        if (fallback is null) return original;
+        return original with { Year = original.Year ?? fallback.Year, Genre = original.Genre ?? fallback.Genre, Description = fallback.Description ?? original.Description,
+            Developer = original.Developer ?? fallback.Developer, Publisher = original.Publisher ?? fallback.Publisher, Players = original.Players ?? fallback.Players,
+            ArtworkFile = fallback.ArtworkFile, ArtworkSourceUrl = fallback.ArtworkSourceUrl, SourceUrl = fallback.SourceUrl };
+    }
 }
 
 public sealed class PinballMetadataProvider(HttpClient client, string directory) : IGameMetadataProvider

@@ -30,7 +30,11 @@ public sealed class AutomaticMetadataService
     public static string DefaultCacheDirectory => Environment.GetEnvironmentVariable("ARCADEOS_METADATA_CACHE")
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArcadeOS", "Metadata");
     public AutomaticMetadataService(string directory, IGameMetadataProvider? provider = null)
-    { this.directory = directory; this.provider = provider ?? new CabinetMetadataProvider(Client, directory); }
+    {
+        this.directory = directory; this.provider = provider ?? new CabinetMetadataProvider(Client, directory);
+        if (this.provider is IMetadataStatusProvider status) status.StatusChanged += message =>
+        { var current = Progress; Volatile.Write(ref progress, current with { CurrentGame = message }); };
+    }
     private static HttpClient CreateClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
@@ -60,14 +64,7 @@ public sealed class AutomaticMetadataService
         var games = scan.Games.Select(game =>
         {
             if (ReadEntry(game)?.Metadata is not { } data) return game;
-            string? artwork = null;
-            if (data.ArtworkFile is { Length: > 0 })
-            {
-                string path = Path.GetFullPath(data.ArtworkFile, directory);
-                string relative = Path.GetRelativePath(directory, path);
-                if (!Path.IsPathRooted(relative) && relative != ".." && !relative.StartsWith(".." + Path.DirectorySeparatorChar)
-                    && File.Exists(path)) artwork = path;
-            }
+            string? artwork = CachedArtwork(ReadEntry(game));
             bool hasCustomTitle = game.Title != Path.GetFileNameWithoutExtension(game.RomPath);
             return game with
             {
@@ -75,7 +72,7 @@ public sealed class AutomaticMetadataService
                 Year = string.IsNullOrWhiteSpace(game.Year) ? data.Year ?? "" : game.Year,
                 Players = game.Players == "See game controls" ? data.Players ?? game.Players : game.Players,
                 Genre = game.Genre ?? data.Genre, Developer = game.Developer ?? data.Developer,
-                Publisher = game.Publisher ?? data.Publisher, ArtworkPath = game.ArtworkPath ?? artwork,
+                Publisher = game.Publisher ?? data.Publisher, ArtworkPath = File.Exists(game.ArtworkPath) ? game.ArtworkPath : artwork,
                 Description = game.Description.StartsWith("Play ") && game.Description.EndsWith("using your existing RetroBat setup.")
                     ? data.Description ?? game.Description : game.Description,
                 MetadataSource = game.MetadataSource ?? data.SourceUrl
@@ -123,8 +120,18 @@ public sealed class AutomaticMetadataService
             throw;
         }
     }
-    private bool HasCover(Game game, AutomaticMetadataEntry? entry) => File.Exists(game.ArtworkPath)
-        || entry?.Metadata?.ArtworkFile is { } cover && File.Exists(Path.Combine(directory, cover));
+    private string? CachedArtwork(AutomaticMetadataEntry? entry)
+    {
+        try
+        {
+            if (entry?.Metadata?.ArtworkFile is not { Length: > 0 } cover) return null;
+            string path = Path.GetFullPath(cover, directory);
+            string relative = Path.GetRelativePath(directory, path);
+            return !Path.IsPathRooted(relative) && relative != ".." && !relative.StartsWith(".." + Path.DirectorySeparatorChar) && File.Exists(path) ? path : null;
+        }
+        catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex)) { MetadataDiagnostics.Record(directory, ex, "Invalid cached artwork path"); return null; }
+    }
+    private bool HasCover(Game game, AutomaticMetadataEntry? entry) => File.Exists(game.ArtworkPath) || CachedArtwork(entry) is not null;
     public MetadataLibraryStatus GetLibraryStatus(IReadOnlyList<Game> games)
     {
         int covers = 0, unsupported = 0, waiting = 0, deferred = 0;
@@ -157,16 +164,16 @@ public sealed class AutomaticMetadataService
                     var result = await provider.FindAsync(game, cancellationToken).ConfigureAwait(false);
                     if (result is null) result = await provider.FindRelaxedAsync(game, cancellationToken).ConfigureAwait(false);
                     var retry = DateTimeOffset.UtcNow + (result?.ArtworkFile is not null ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24));
-                    entry = new(result ?? entry?.Metadata, retry, result is null ? "Unmatched" : "Matched", 5);
+                    entry = new(result ?? entry?.Metadata, retry, result is null ? "Unmatched" : "Matched", 6);
                     await WriteAtomicAsync(EntryPath(game), JsonSerializer.Serialize(entry), cancellationToken).ConfigureAwait(false);
                     Remember(game, entry);
                     if (result is null) unmatched++; else { matched++; if (HasCover(game, entry)) artwork++; MetadataUpdated?.Invoke(); }
                 }
-                catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or JsonException
-                    or System.Text.RegularExpressions.RegexMatchTimeoutException || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+                catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex) && !(ex is OperationCanceledException && cancellationToken.IsCancellationRequested))
                 {
                     failed++; lastError = ex is OperationCanceledException ? "Metadata server timed out; retrying in 5 minutes." : ex.Message;
-                    entry = new(entry?.Metadata, DateTimeOffset.UtcNow.AddMinutes(5), "Retry pending: " + lastError, 5);
+                    MetadataDiagnostics.Record(directory, ex, "Lookup: " + game.SystemId + "/" + game.Title);
+                    entry = new(entry?.Metadata, ex is MetadataUnavailableException ? DateTimeOffset.UtcNow.AddDays(1) : DateTimeOffset.UtcNow.AddMinutes(5), "Retry pending: " + lastError, 6);
                     Remember(game, entry);
                     try { await WriteAtomicAsync(EntryPath(game), JsonSerializer.Serialize(entry), cancellationToken).ConfigureAwait(false); }
                     catch (Exception writeError) when (writeError is IOException or UnauthorizedAccessException) { }
@@ -179,12 +186,21 @@ public sealed class AutomaticMetadataService
     private bool NeedsLookup(Game game)
     {
         if (game.SystemId is null || !provider.Supports(game.SystemId)) return false;
-        if (game.MetadataSource is not null && game.ArtworkPath is not null && !string.IsNullOrEmpty(game.Year)
+        if (game.MetadataSource is not null && File.Exists(game.ArtworkPath) && !string.IsNullOrEmpty(game.Year)
             && !string.IsNullOrEmpty(game.Genre)) return false;
         var entry = ReadEntry(game);
         bool pinballArtworkUpgrade = game.SystemId == "vpinball" && entry?.Metadata is { ArtworkFile: null } && entry.MatcherVersion < 3;
-        bool coverMissing = entry?.Metadata?.ArtworkFile is { } cover && !File.Exists(Path.Combine(directory, cover));
-        return entry is null || pinballArtworkUpgrade || (entry.Status == "Unmatched" && entry.MatcherVersion < 5) || entry.RetryAfter <= DateTimeOffset.UtcNow || coverMissing;
+        bool coverMissing = entry?.Metadata?.ArtworkFile is not null && CachedArtwork(entry) is null;
+        if (coverMissing && entry?.RetryAfter > DateTimeOffset.UtcNow && entry.Metadata?.ArtworkFile is { } rejectedCover)
+        {
+            try
+            {
+                string rejected = Path.Combine(directory, rejectedCover + ".invalid");
+                if (File.Exists(rejected) && DateTime.UtcNow - File.GetLastWriteTimeUtc(rejected) < TimeSpan.FromMinutes(5)) return false;
+            }
+            catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex)) { }
+        }
+        return entry is null || pinballArtworkUpgrade || (entry.Status == "Unmatched" && entry.MatcherVersion < 6) || entry.RetryAfter <= DateTimeOffset.UtcNow || coverMissing;
     }
     public static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
     {

@@ -8,4 +8,4 @@
 <Compile Include="../../ArcadeOS/Services/RetroBatLibraryService.cs" Link="RetroBatLibraryService.cs"/>
 <Compile Include="../../ArcadeOS/Services/RetroBatSettings.cs" Link="RetroBatSettings.cs"/>
 <Compile Include="../../ArcadeOS/Models/Game.cs" Link="Game.cs"/>
-<Compile Include="MetadataChecks.cs"/></ItemGroup></Project>
+<Compile Include="../../ArcadeOS/Services/MetadataPlatforms.cs" Link="MetadataPlatforms.cs"/><Compile Include="../../ArcadeOS/Services/MetadataDiagnostics.cs" Link="MetadataDiagnostics.cs"/><Compile Include="MetadataChecks.cs"/></ItemGroup></Project>

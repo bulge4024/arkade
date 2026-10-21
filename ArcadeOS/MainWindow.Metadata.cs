@@ -19,7 +19,7 @@ public partial class MainWindow
             + (metadataSummary is { } summary ? $"\nLibrary: {summary.Covers:N0}/{summary.Total:N0} have artwork · {summary.Waiting:N0} waiting · {summary.Deferred:N0} waiting for retry · {summary.Unsupported:N0} on unsupported systems." : "")
             + (p.LastError is { } error ? "\nLast lookup error: " + error : "")
             + (metadataWorkerError is { } workerError ? "\nMetadata paused: " + workerError : "")
-            + "\nUpdates appear when you return to browsing. Refresh Library rescans files; Retry Missing retries unmatched or failed games without deleting existing artwork.";
+            + "\nUpdates appear when you return to browsing. The first broad catalog setup downloads about 104 MB once in the background. Error log: " + System.IO.Path.Combine(AutomaticMetadataService.DefaultCacheDirectory, "metadata-errors.log") + "\nRefresh Library rescans files; Retry Missing retries unmatched or failed games without deleting existing artwork.";
         if (readingMetadataSummary || DateTime.UtcNow < nextMetadataSummary) return;
         readingMetadataSummary = true; nextMetadataSummary = DateTime.UtcNow.AddSeconds(5);
         try
@@ -27,7 +27,7 @@ public partial class MainWindow
             var snapshot = viewModel.GetLibrarySnapshot();
             metadataSummary = await Task.Run(() => automaticMetadata.GetLibraryStatus(snapshot));
         }
-        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { metadataWorkerError = ex.Message; }
+        catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex)) { metadataWorkerError = ex.Message; MetadataDiagnostics.Record(AutomaticMetadataService.DefaultCacheDirectory, ex, "Metadata status panel"); }
         finally { readingMetadataSummary = false; }
     }
     private async void RetryMetadataClick(object sender, RoutedEventArgs e)
@@ -38,6 +38,8 @@ public partial class MainWindow
         RetryMetadataButton.IsEnabled = false;
         MetadataSettingsStatus.Text = "Retry queued. Missing info and covers will be checked after the current batch. You can return to browsing.";
         try { await EnrichLibraryMetadataAsync(viewModel.GetLibrarySnapshot(), retryMissing: true); }
+        catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex))
+        { metadataWorkerError = ex.Message; MetadataDiagnostics.Record(AutomaticMetadataService.DefaultCacheDirectory, ex, "Manual metadata retry"); }
         finally { if (!windowClosed) RetryMetadataButton.IsEnabled = true; }
     }
 }

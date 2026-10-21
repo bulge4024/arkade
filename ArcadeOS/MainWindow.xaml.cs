@@ -252,8 +252,7 @@ public partial class MainWindow : Window
                 viewModel.Status = "No RetroBat games found. Showing demo collection.";
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException
-            or System.Text.Json.JsonException or ArgumentException)
+        catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex))
         {
             if (background)
             {
@@ -335,8 +334,8 @@ public partial class MainWindow : Window
     {
         try { await Task.Run(() => automaticMetadata.EnrichAsync(games, metadataCancellation.Token, retryMissing), metadataCancellation.Token); }
         catch (OperationCanceledException) { }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or System.Net.Http.HttpRequestException)
-        { metadataWorkerError = ex.Message; System.Diagnostics.Trace.TraceWarning($"Automatic metadata lookup paused: {ex.Message}"); }
+        catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex))
+        { metadataWorkerError = ex.Message; MetadataDiagnostics.Record(AutomaticMetadataService.DefaultCacheDirectory, ex, "Metadata worker"); }
     }
     private async void RefreshLibraryClick(object sender, RoutedEventArgs e)
     {

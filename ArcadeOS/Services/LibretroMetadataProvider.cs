@@ -9,22 +9,7 @@ namespace ArcadeOS.Services;
 
 public sealed class LibretroMetadataProvider(HttpClient client, string cacheDirectory) : IGameMetadataProvider
 {
-    private static readonly Dictionary<string, string> Platforms = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["megadrive"] = "Sega - Mega Drive - Genesis", ["genesis"] = "Sega - Mega Drive - Genesis",
-        ["snes"] = "Nintendo - Super Nintendo Entertainment System", ["nes"] = "Nintendo - Nintendo Entertainment System",
-        ["gb"] = "Nintendo - Game Boy", ["gbc"] = "Nintendo - Game Boy Color", ["gba"] = "Nintendo - Game Boy Advance",
-        ["n64"] = "Nintendo - Nintendo 64", ["mastersystem"] = "Sega - Master System - Mark III",
-        ["sega32x"] = "Sega - 32X", ["32x"] = "Sega - 32X",
-        ["gamegear"] = "Sega - Game Gear", ["psx"] = "Sony - PlayStation",
-        ["dreamcast"] = "Sega - Dreamcast", ["saturn"] = "Sega - Saturn", ["segacd"] = "Sega - Mega-CD - Sega CD",
-        ["gamecube"] = "Nintendo - GameCube", ["nds"] = "Nintendo - Nintendo DS",
-        ["ps2"] = "Sony - PlayStation 2", ["psp"] = "Sony - PlayStation Portable",
-        ["atari2600"] = "Atari - 2600", ["atari7800"] = "Atari - 7800", ["jaguar"] = "Atari - Jaguar", ["lynx"] = "Atari - Lynx",
-        ["3do"] = "The 3DO Company - 3DO", ["pcengine"] = "NEC - PC Engine - TurboGrafx 16",
-        ["ngpc"] = "SNK - Neo Geo Pocket Color", ["ngp"] = "SNK - Neo Geo Pocket",
-        ["wonderswan"] = "Bandai - WonderSwan", ["wonderswancolor"] = "Bandai - WonderSwan Color", ["virtualboy"] = "Nintendo - Virtual Boy"
-    };
+    private static readonly IReadOnlyDictionary<string, string> Platforms = MetadataPlatforms.Libretro;
     private static readonly string[] Fields = ["developer", "publisher", "genre", "releaseyear", "maxusers"];
     private sealed record PlatformDatabase(Dictionary<string, Dictionary<string, string>> Rows, Dictionary<string, string[]> Names);
     private readonly Dictionary<string, PlatformDatabase> loadedDatabases = new();
@@ -39,6 +24,7 @@ public sealed class LibretroMetadataProvider(HttpClient client, string cacheDire
         if (game.SystemId is null || game.RomPath is null || !Platforms.TryGetValue(game.SystemId, out var platform)) return null;
         if (!loadedDatabases.TryGetValue(platform, out var database))
         {
+            if (loadedDatabases.Count >= 3) loadedDatabases.Clear();
             var rows = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             foreach (string field in Fields)
             {
@@ -47,7 +33,7 @@ public sealed class LibretroMetadataProvider(HttpClient client, string cacheDire
             }
             // Some disc consoles only have a title catalog, rather than editorial metadata.
             // This still supplies exact game names for box-art lookup.
-            if (rows.Count == 0 && platform is "Sega - Saturn" or "Nintendo - GameCube" or "Sega - Mega-CD - Sega CD" or "The 3DO Company - 3DO")
+            if (rows.Count == 0)
                 ParseDat(await GetDatabaseAsync(platform, "redump", cancellationToken).ConfigureAwait(false), rows);
             database = new(rows, rows.Keys.GroupBy(MetadataNames.Normalize).ToDictionary(group => group.Key, group => group.ToArray()));
             loadedDatabases[platform] = database;
@@ -114,7 +100,11 @@ public sealed class LibretroMetadataProvider(HttpClient client, string cacheDire
     private async Task<string> GetDatabaseAsync(string platform, string field, CancellationToken cancellationToken)
     {
         string path = Path.Combine(cacheDirectory, "databases", platform.Replace(' ', '_') + "-" + field + ".dat");
-        if (File.Exists(path)) return await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+        if (File.Exists(path))
+        {
+            if (new FileInfo(path).Length > 16 * 1024 * 1024) throw new InvalidDataException("Cached database exceeded its size limit: " + Path.GetFileName(path));
+            return await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+        }
         string url = $"https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/{field}/{Uri.EscapeDataString(platform)}.dat";
         using var response = await client.GetAsync(url, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.NotFound)
@@ -132,9 +122,14 @@ public sealed class LibretroMetadataProvider(HttpClient client, string cacheDire
     {
         foreach (Match block in Regex.Matches(text, @"(?ms)^game\s*\(\s*(.*?)^\)"))
         {
-            var fields = Regex.Matches(block.Groups[1].Value, "(?m)^\\s*(comment|name|developer|publisher|genre|releaseyear|users)\\s+(?:\"([^\"]*)\"|([0-9]+))")
-                .Cast<Match>().ToDictionary(match => match.Groups[1].Value,
-                    match => match.Groups[2].Success ? match.Groups[2].Value : match.Groups[3].Value);
+            var fieldMatches = Regex.Matches(block.Groups[1].Value, "(?m)^\\s*(comment|name|developer|publisher|genre|releaseyear|users)\\s+(?:\"([^\"]*)\"|([0-9]+))")
+                .Cast<Match>();
+            var fields = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var field in fieldMatches)
+            {
+                string value = field.Groups[2].Success ? field.Groups[2].Value : field.Groups[3].Value;
+                if (!fields.ContainsKey(field.Groups[1].Value) || value.Length > 0) fields[field.Groups[1].Value] = value;
+            }
             var crc = Regex.Match(block.Groups[1].Value, @"rom\s*\(\s*crc\s+([A-Fa-f0-9]+)");
             if (crc.Success) fields["crc"] = crc.Groups[1].Value;
             string? name = fields.GetValueOrDefault("comment") ?? fields.GetValueOrDefault("name");

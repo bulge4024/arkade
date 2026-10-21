@@ -8,3 +8,6 @@ public interface IGameMetadataProvider
     bool Supports(string systemId);
     Task<CachedGameMetadata?> FindAsync(Game game, CancellationToken cancellationToken);
 }
+
+public interface IMetadataStatusProvider { event Action<string>? StatusChanged; }
+public sealed class MetadataUnavailableException(string message) : Exception(message);

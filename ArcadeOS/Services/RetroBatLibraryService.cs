@@ -76,7 +76,7 @@ public sealed class RetroBatLibraryService(RetroBatSettings settings)
                     games.Add(new Game(title, category, (string?)entry?.Element("releasedate") ?? "",
                         (string?)entry?.Element("players") ?? "See game controls", systemTitle.ToUpperInvariant(),
                         (string?)entry?.Element("desc") ?? $"Play {title} using your existing RetroBat setup.",
-                        "#56F4DD", "#103A46", "◈") { RomPath = path, SystemId = id, ArtworkPath = artworkPath,
+                        "#56F4DD", "#103A46", "◈") { RomPath = path, SystemId = id, SystemName = systemTitle, SystemManufacturer = (string?)system.Element("manufacturer"), SystemAliases = (string?)system.Element("platform"), ArtworkPath = artworkPath,
                             MarqueePath = FindMedia((string?)entry?.Element("marquee"), folder, path, "images", "-marquee", [".png", ".jpg", ".jpeg"])
                                 ?? FindMedia((string?)entry?.Element("wheel"), folder, path, "marquees", "-marquee", [".png", ".jpg", ".jpeg"]),
                             VideoPath = FindMedia((string?)entry?.Element("video"), folder, path, "videos", "-video", [".mp4", ".m4v", ".wmv", ".avi"]),

@@ -10,7 +10,7 @@ public sealed class MameMetadataProvider(HttpClient client, string directory) : 
     private sealed record Entry(string Title, string Year, string Maker);
     private Dictionary<string, Entry[]>? games;
     private readonly LibretroMetadataProvider images = new(client, directory);
-    public bool Supports(string systemId) => systemId == "mame";
+    public bool Supports(string systemId) => systemId is "mame" or "fbneo" or "fba" or "neogeo" or "lcdgames" or "tvgames";
     public async Task<CachedGameMetadata?> FindAsync(Game game, CancellationToken token)
     {
         if (!Supports(game.SystemId ?? "") || game.RomPath is null) return null;
