@@ -1,0 +1,1 @@
+namespace ArcadeOS.Services; public static class AutomaticMetadataService { public static string DefaultCacheDirectory => System.IO.Path.GetTempPath(); }

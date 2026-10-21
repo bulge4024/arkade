@@ -113,3 +113,12 @@ The fallback's first setup downloads approximately 104 MB from `https://gamesdb.
 Source documentation: https://feedback.launchbox-app.com/en/help/articles/8890692-getting-started-with-the-launchbox-games-database and https://forums.launchbox-app.com/topic/30123-launchbox-games-db-external-scraper/ . Game artwork retains its original owners' rights; the database and ROMs are not included in Arkade releases.
 
 Regression checks: `tests/BroadMetadataChecks` exercises the actual provider router, streamed index, aliases, corruption recovery, provider failure isolation and console routing with dummy data. `tests/MetadataUiChecks` exercises the actual asynchronous retry/status handlers and safe artwork decoding in a small standalone WPF host. Live verification indexed 190 platforms and retrieved a Switch title's metadata and cover without reading or downloading a ROM.
+
+
+### Gameplay screensaver
+
+After five minutes without keyboard, joystick/controller or mouse activity in a browsing menu, Arkade shuffles the local gameplay videos across the whole library. It fills the primary display, preserves each clip’s aspect ratio, mutes all video audio and temporarily pauses music. Clips advance at their end or after 30 seconds. Any key, controller button/stick, mouse button, wheel or movement returns to the same menu and selection; the wake button is consumed until released. A windowed menu is restored to its previous size after waking.
+
+The screensaver waits during gameplay, startup, dialogs, Settings and update installation. Missing videos leave the menu visible; broken/stalled clips are skipped and retried only after their file changes. A temporary display-awake lease prevents Windows monitor blanking while Arkade is active; it is released when Arkade loses focus, launches a game or closes. Windows power settings are not changed.
+
+`dotnet run --project tests/ScreensaverChecks/ScreensaverChecks.csproj -c Release` checks actual screensaver integration with simulated idle time and controller readings in a standalone WPF host. An optional local MP4 path also exercises real muted playback, EOF advancement and fullscreen restoration. No ROMs, emulator or physical DMD are used by these checks.

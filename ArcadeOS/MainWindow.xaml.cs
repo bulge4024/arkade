@@ -52,7 +52,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer previewDelay = new() { Interval = TimeSpan.FromMilliseconds(650) };
     private string? pendingPreviewPath;
     private readonly HashSet<string> failedPreviews = new(StringComparer.OrdinalIgnoreCase);
-    private bool CanPlayPreview => !windowClosed && !launching && !browsingSystems && IsVisible
+    private bool CanPlayPreview => !ScreensaverActive && !windowClosed && !launching && !browsingSystems && IsVisible
         && WindowState != WindowState.Minimized && StartupSplash.Visibility != Visibility.Visible && DetailsOverlay.Visibility != Visibility.Visible
         && UtilityOverlay.Visibility != Visibility.Visible && PowerOverlay.Visibility != Visibility.Visible && UpdateOverlay.Visibility != Visibility.Visible;
     private void UpdateGamePreview()
@@ -130,7 +130,7 @@ public partial class MainWindow : Window
         this.appUpdates = updateService ?? new AppUpdateService();
         this.computerPower = computerPower;
         this.secondaryDisplay = secondaryDisplay;
-        InitializeComponent(); InitializeUpdates(); InitializeControllers(); InitializeRomDownloads();
+        InitializeComponent(); InitializeUpdates(); InitializeControllers(); InitializeRomDownloads(); InitializeScreensaver();
         DataContext = viewModel;
         MusicPanel.DataContext = music;
         NowPlayingDisplay.DataContext = music;
@@ -207,7 +207,7 @@ public partial class MainWindow : Window
         splashFailure = "Intro video could not play. The library is still available.";
         DismissSplash();
     }
-    private bool CanRefreshInBackground => !RomBrowserOpen && !windowClosed && !launching && !refreshingLibrary && !applyingMetadataBatch
+    private bool CanRefreshInBackground => !ScreensaverActive && !RomBrowserOpen && !windowClosed && !launching && !refreshingLibrary && !applyingMetadataBatch
         && WindowState != WindowState.Minimized && StartupSplash.Visibility != Visibility.Visible && DetailsOverlay.Visibility != Visibility.Visible
         && UtilityOverlay.Visibility != Visibility.Visible && PowerOverlay.Visibility != Visibility.Visible && UpdateOverlay.Visibility != Visibility.Visible;
     private async Task RefreshLibraryPeriodicallyAsync()
@@ -627,9 +627,11 @@ public partial class MainWindow : Window
         OpenUtility();
         FullscreenButton.Focus();
     }
-    private void UpdateDisplayText() => UtilityText.Text = $"Display mode: {(fullscreen ? "Fullscreen" : "Windowed")}\n\nThe library refreshes automatically every 30 seconds while browsing. Refresh pauses during games and dialogs.\n\nRefresh Library runs a scan now. Keyboard shortcut: F5.\n\nJoystick directions choose an action. Select confirms; Back returns.";
+    private void UpdateDisplayText() => UtilityText.Text = $"Display mode: {(fullscreen ? "Fullscreen" : "Windowed")}\n\nThe library refreshes automatically every 30 seconds while browsing. Refresh pauses during games and dialogs.\n\nRefresh Library runs a scan now. Keyboard shortcut: F5.\n\nScreensaver: random muted gameplay videos after 5 minutes idle. Any key or controller button returns to the same menu.\n\nJoystick directions choose an action. Select confirms; Back returns.";
     private IntPtr HandleMusicCommand(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (message == 0x0319 && (ScreensaverActive || Environment.TickCount64 < screensaverSuppressUntil))
+        { if (ScreensaverActive) StopScreensaver(); handled = true; return new IntPtr(1); }
         if (message != 0x0319 || launching || StartupSplash.Visibility == Visibility.Visible) return IntPtr.Zero;
         int command = (int)((lParam.ToInt64() >> 16) & 0x0fff);
         switch (command)
@@ -772,6 +774,7 @@ public partial class MainWindow : Window
     }
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
+        if (HandleScreensaverKey(e)) return;
         if (RomBrowserOpen) { HandleRomKey(e); return; }
         if (ControllerOverlay.Visibility == Visibility.Visible) { HandleControllerSetupKey(e); return; }
         if (UpdateOverlay.Visibility == Visibility.Visible) { HandleUpdateKey(e); return; }

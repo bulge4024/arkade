@@ -20,6 +20,8 @@ jobs:
         run: dotnet run --project tests/UpdaterChecks/UpdaterChecks.csproj -c Release
       - name: Test controller navigation and mappings
         run: dotnet run --project tests/ControllerChecks/ControllerChecks.csproj -c Release
+      - name: Test screensaver timing, playlist and wake input
+        run: dotnet run --project tests/ScreensaverChecks/ScreensaverChecks.csproj -c Release
       - name: Test metadata queue, retries and progress
         run: dotnet run --project tests/MetadataChecks/MetadataChecks.csproj -c Release
       - name: Test broad console metadata and corrupt data recovery

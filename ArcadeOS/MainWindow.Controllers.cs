@@ -24,6 +24,7 @@ public partial class MainWindow
         {
             bool active = !windowClosed && !launching && IsActive && IsVisible;
             var input = controllerInput.Poll(active && !mappingButtons, Environment.TickCount64);
+            if (HandleScreensaverController(active)) return;
             if (ControllerOverlay.Visibility == Visibility.Visible)
             {
                 ControllerDevices.Text = controllerInput.Devices.Count == 0 ? "No joystick detected. Connect the USB controller; detection updates automatically. Keyboard controls still work." :

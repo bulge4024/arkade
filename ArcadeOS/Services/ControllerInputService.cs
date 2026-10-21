@@ -51,6 +51,8 @@ public sealed class ControllerInputService
     private Dictionary<string, ControllerBindings> bindings = new();
     private Dictionary<string, uint> previousButtons = new();
     public IReadOnlyList<ControllerReading> Devices { get; private set; } = [];
+    public bool HasRawInput => Devices.Any(device => device.Buttons != 0 || device.Directions != CabinetInput.None);
+    public void RequireNeutral() => repeat.Reset();
     public ControllerInputService(IControllerReader? reader = null, string? settingsPath = null)
     {
         this.reader = reader ?? new WindowsControllerReader();
@@ -117,8 +119,9 @@ public sealed class WindowsControllerReader : IControllerReader
             var directions = ControllerInputService.DecodeAxes(pad.X / 32768d, -pad.Y / 32768d);
             if ((pad.Buttons & 1) != 0) directions |= CabinetInput.Up; if ((pad.Buttons & 2) != 0) directions |= CabinetInput.Down;
             if ((pad.Buttons & 4) != 0) directions |= CabinetInput.Left; if ((pad.Buttons & 8) != 0) directions |= CabinetInput.Right;
-            uint buttons = 0; ushort[] masks = [0x1000, 0x2000, 0x4000, 0x8000, 0x100, 0x200, 0x20, 0x10];
+            uint buttons = 0; ushort[] masks = [0x1000, 0x2000, 0x4000, 0x8000, 0x100, 0x200, 0x20, 0x10, 0x40, 0x80];
             for (int i = 0; i < masks.Length; i++) if ((pad.Buttons & masks[i]) != 0) buttons |= 1u << i;
+            if (pad.LeftTrigger > 127) buttons |= 1u << 10; if (pad.RightTrigger > 127) buttons |= 1u << 11;
             result.Add(new($"xinput:{id}", $"Xbox controller {id + 1}", "xinput", directions, buttons, "xinput"));
         }
         for (uint id = 0; id < 16; id++)

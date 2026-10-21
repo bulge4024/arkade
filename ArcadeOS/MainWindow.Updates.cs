@@ -16,7 +16,7 @@ public partial class MainWindow
     private AppRelease? queuedUpdate;
     private CancellationTokenSource? downloadCancellation;
     private bool SettingsOpen => UtilityOverlay.Visibility == Visibility.Visible && FullscreenButton.Visibility == Visibility.Visible;
-    private bool CanOfferUpdate => romDownloads?.IsRunning != true && !RomBrowserOpen && !windowClosed && !launching && !powerBusy && !checkingUpdates && !downloadingUpdate
+    private bool CanOfferUpdate => !ScreensaverActive && romDownloads?.IsRunning != true && !RomBrowserOpen && !windowClosed && !launching && !powerBusy && !checkingUpdates && !downloadingUpdate
         && IsVisible && WindowState != WindowState.Minimized && StartupSplash.Visibility != Visibility.Visible
         && ControllerOverlay.Visibility != Visibility.Visible && UtilityOverlay.Visibility != Visibility.Visible && DetailsOverlay.Visibility != Visibility.Visible && PowerOverlay.Visibility != Visibility.Visible && UpdateOverlay.Visibility != Visibility.Visible;
     private void InitializeUpdates()
@@ -51,7 +51,7 @@ public partial class MainWindow
             if (windowClosed) return;
             RefreshUpdateStatus();
             // Recheck after the network request: a game or dialog may have opened while it ran.
-            bool canShow = !romDownloads.IsRunning && !RomBrowserOpen && ControllerOverlay.Visibility != Visibility.Visible && !launching && !powerBusy && PowerOverlay.Visibility != Visibility.Visible && DetailsOverlay.Visibility != Visibility.Visible && StartupSplash.Visibility != Visibility.Visible
+            bool canShow = !ScreensaverActive && !romDownloads.IsRunning && !RomBrowserOpen && ControllerOverlay.Visibility != Visibility.Visible && !launching && !powerBusy && PowerOverlay.Visibility != Visibility.Visible && DetailsOverlay.Visibility != Visibility.Visible && StartupSplash.Visibility != Visibility.Visible
                 && IsVisible && WindowState != WindowState.Minimized && (manual ? SettingsOpen : UtilityOverlay.Visibility != Visibility.Visible);
             if (release is null) { if (manual) UpdateSettingsStatus.Text = $"You're up to date. Installed: {appUpdates.CurrentVersion.ToString(3)}.\nAutomatic checks run every 2 days."; }
             else if (canShow) ShowUpdate(release);

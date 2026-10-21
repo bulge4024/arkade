@@ -310,5 +310,6 @@
    <MediaElement x:Name="SplashVideo" LoadedBehavior="Manual" UnloadedBehavior="Close" Stretch="Uniform" Volume="0.65" IsHitTestVisible="False" MediaOpened="OnSplashVideoOpened" MediaEnded="OnSplashVideoEnded" MediaFailed="OnSplashVideoFailed"/>
    <Border Background="#99000000" CornerRadius="8" Padding="16,10" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,28" IsHitTestVisible="False"><TextBlock Text="PRESS SELECT TO SKIP" Foreground="#EAC574" FontSize="12"/></Border>
   </Grid>
+  <Grid x:Name="ScreensaverOverlay" Background="Black" Visibility="Collapsed" Panel.ZIndex="300" IsHitTestVisible="False" AutomationProperties.Name="Muted gameplay screensaver"><controls:AttractVideoSurface x:Name="ScreensaverVideo"/></Grid>
  </Grid>
 </Window>
