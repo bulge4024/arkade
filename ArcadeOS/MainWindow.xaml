@@ -224,6 +224,7 @@
   <Border x:Name="UtilityOverlay" Background="#FC101722" BorderBrush="#EAC574" BorderThickness="1" CornerRadius="15" Margin="22,16" Padding="28" Visibility="Collapsed">
    <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel VerticalAlignment="Center"><TextBlock x:Name="UtilityTitle" Foreground="#EAC574" FontSize="28" FontWeight="Black"/><TextBlock x:Name="UtilityText" TextWrapping="Wrap" FontSize="16" LineHeight="28" Margin="0,24,0,24"/><Button x:Name="FullscreenButton" Content="TOGGLE FULLSCREEN" Click="ToggleFullscreenClick" HorizontalAlignment="Left"/><Button x:Name="RefreshLibraryButton" Content="REFRESH LIBRARY" Click="RefreshLibraryClick" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+     <Button x:Name="RemoteLibraryButton" Content="DOWNLOAD GAMES / REMOTE LIBRARY" Click="OpenRomDownloads" HorizontalAlignment="Left" Margin="0,12,0,0" Visibility="Collapsed"/>
      <StackPanel x:Name="UpdateSettingsPanel" Margin="0,16,0,4" Visibility="Collapsed">
       <Button x:Name="CheckUpdatesButton" Content="CHECK FOR UPDATES" Click="CheckUpdatesClick" HorizontalAlignment="Left"/>
       <TextBlock x:Name="UpdateSettingsStatus" Foreground="#A8B4C4" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>

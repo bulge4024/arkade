@@ -20,6 +20,8 @@ jobs:
         run: dotnet run --project tests/UpdaterChecks/UpdaterChecks.csproj -c Release
       - name: Test controller navigation and mappings
         run: dotnet run --project tests/ControllerChecks/ControllerChecks.csproj -c Release
+      - name: Test remote ROM downloads, replacements and schedule
+        run: dotnet run --project tests/RomChecks/RomChecks.csproj -c Release
       - name: Test isolated installer with Windows PowerShell
         shell: powershell
         run: ./tests/UpdaterChecks/InstallChecks.ps1

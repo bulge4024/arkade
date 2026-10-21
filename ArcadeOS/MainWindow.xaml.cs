@@ -130,7 +130,7 @@ public partial class MainWindow : Window
         this.appUpdates = updateService ?? new AppUpdateService();
         this.computerPower = computerPower;
         this.secondaryDisplay = secondaryDisplay;
-        InitializeComponent(); InitializeUpdates(); InitializeControllers();
+        InitializeComponent(); InitializeUpdates(); InitializeControllers(); InitializeRomDownloads();
         DataContext = viewModel;
         MusicPanel.DataContext = music;
         NowPlayingDisplay.DataContext = music;
@@ -207,7 +207,7 @@ public partial class MainWindow : Window
         splashFailure = "Intro video could not play. The library is still available.";
         DismissSplash();
     }
-    private bool CanRefreshInBackground => !windowClosed && !launching && !refreshingLibrary && !applyingMetadataBatch
+    private bool CanRefreshInBackground => !RomBrowserOpen && !windowClosed && !launching && !refreshingLibrary && !applyingMetadataBatch
         && WindowState != WindowState.Minimized && StartupSplash.Visibility != Visibility.Visible && DetailsOverlay.Visibility != Visibility.Visible
         && UtilityOverlay.Visibility != Visibility.Visible && PowerOverlay.Visibility != Visibility.Visible && UpdateOverlay.Visibility != Visibility.Visible;
     private async Task RefreshLibraryPeriodicallyAsync()
@@ -595,6 +595,7 @@ public partial class MainWindow : Window
     }
     private void ShowHelp(object sender, RoutedEventArgs e)
     {
+        RemoteLibraryButton.Visibility = Visibility.Collapsed;
         ControllerSettingsPanel.Visibility = Visibility.Collapsed;
         UpdateSettingsPanel.Visibility = Visibility.Collapsed;
         SecondaryScreenPanel.Visibility = Visibility.Collapsed;
@@ -609,6 +610,7 @@ public partial class MainWindow : Window
     }
     private void ShowSettings(object sender, RoutedEventArgs e)
     {
+        RemoteLibraryButton.Visibility = Visibility.Visible;
         ControllerSettingsPanel.Visibility = Visibility.Visible;
         UpdateSettingsPanel.Visibility = Visibility.Visible; RefreshUpdateStatus();
         SecondaryScreenPanel.Visibility = Visibility.Visible;
@@ -715,7 +717,7 @@ public partial class MainWindow : Window
         if (Directory.Exists(music.Folder)) dialog.InitialDirectory = music.Folder;
         if (dialog.ShowDialog(this) == true) await music.LoadFolderAsync(dialog.FolderName);
     }
-    private Button[] UtilityButtons => [FullscreenButton, RefreshLibraryButton, CheckUpdatesButton, ControllerSetupButton, WindowsStartupButton, SecondaryScreenButton, MusicPreviousButton, MusicPlayButton, MusicNextButton,
+    private Button[] UtilityButtons => [FullscreenButton, RefreshLibraryButton, RemoteLibraryButton, CheckUpdatesButton, ControllerSetupButton, WindowsStartupButton, SecondaryScreenButton, MusicPreviousButton, MusicPlayButton, MusicNextButton,
         MusicFolderButton, MusicQuieterButton, MusicLouderButton, MusicAnimationButton, UtilityBackButton];
     private void OpenUtility()
     {
@@ -768,6 +770,7 @@ public partial class MainWindow : Window
     }
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
+        if (RomBrowserOpen) { HandleRomKey(e); return; }
         if (ControllerOverlay.Visibility == Visibility.Visible) { HandleControllerSetupKey(e); return; }
         if (UpdateOverlay.Visibility == Visibility.Visible) { HandleUpdateKey(e); return; }
         if (launching) { e.Handled = true; return; }
