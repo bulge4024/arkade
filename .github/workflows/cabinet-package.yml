@@ -22,6 +22,8 @@ jobs:
         run: dotnet run --project tests/ControllerChecks/ControllerChecks.csproj -c Release
       - name: Test metadata queue, retries and progress
         run: dotnet run --project tests/MetadataChecks/MetadataChecks.csproj -c Release
+      - name: Test background download queue and deferred installation
+        run: dotnet run --project tests/DownloadQueueChecks/DownloadQueueChecks.csproj -c Release
       - name: Test remote ROM downloads, replacements and schedule
         run: dotnet run --project tests/RomChecks/RomChecks.csproj -c Release
       - name: Test isolated installer with Windows PowerShell

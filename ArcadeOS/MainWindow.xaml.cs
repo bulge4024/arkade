@@ -354,7 +354,7 @@ public partial class MainWindow : Window
         if (UpdateOverlay.Visibility == Visibility.Visible || launching || retroBatSettings is null || viewModel.SelectedGame is not { CanLaunch: true } game) return;
         StopGamePreview();
         bool recordedPlay = false;
-        launching = true;
+        launching = true; downloadGameWindow = IntPtr.Zero;
         companionRunningGame = game;
         // Hide the companion before starting pinball so it cannot cover a DMD window.
         RefreshSecondaryDisplay();
@@ -377,7 +377,7 @@ public partial class MainWindow : Window
                     launchStatusTimer.Stop();
                     LaunchStatusText.Text = "Your game is running. Arkade is ready in the background.";
                 })), metadataCancellation.Token, handle => Dispatcher.BeginInvoke(new Action(() =>
-                { if (launching && !windowClosed) LaunchWindowBackdrop.PlaceBehindGame(this, handle); })));
+                { if (launching && !windowClosed) { downloadGameWindow = handle; LaunchWindowBackdrop.PlaceBehindGame(this, handle); } })));
             if (windowClosed) return;
             if (code == 0)
             {
@@ -396,7 +396,7 @@ public partial class MainWindow : Window
         catch (OperationCanceledException) when (windowClosed) { }
         finally
         {
-            launching = false;
+            launching = false; downloadGameWindow = IntPtr.Zero;
             companionRunningGame = null;
             if (!windowClosed) RefreshSecondaryDisplay();
             if (!windowClosed) music.SetSuspended(false);

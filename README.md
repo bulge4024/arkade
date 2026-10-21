@@ -89,3 +89,14 @@ Settings → Game Info and Artwork shows the active game, batch progress, matche
 New snapshots arriving during a running metadata pass replace the queued snapshot rather than being dropped. Provider failures are reported per game and do not abort the whole batch. Console metadata now also supports Dreamcast, Saturn, Mega CD, GameCube, DS, PS2, PSP, Atari 2600/7800, Jaguar, Lynx, 3DO, PC Engine, Neo Geo Pocket/Color, WonderSwan/Color and Virtual Boy. The supported disc systems with only title databases use their Redump catalogs for exact box-art matching; full editorial details may be unavailable. Missing database fields are cached to avoid repeatedly requesting nonexistent files.
 
 `dotnet run --project tests/MetadataChecks/MetadataChecks.csproj -c Release` checks the real queue, diagnostics, failure isolation, cancellation, retry behavior, cover preservation and provider catalog fallback using dummy data and a fake HTTP handler.
+
+
+### Background ROM downloads
+
+Download in Background immediately returns to the library. The queue owns an immutable destination for each selected file and keeps running while browsing, switching consoles, or playing an emulator. You can reopen Download Games to add another console's selections or cancel all remaining downloads. Duplicate queued files are ignored; a failed transfer is reported and the next file continues. Closing the selection screen does not cancel downloads. Closing Arkade cancels the queue and removes incomplete files; automatic resumption after restart is not provided.
+
+A compact widget temporarily replaces the music display in the top right. It shows the current filename, queue position, current-file percentage, transfer speed and estimated time remaining for that file (rather than inventing an estimate for files whose sizes are not yet known). Verification/extraction and waiting-for-game-exit states are explicit. The music itself continues under its normal playback rules and its display returns after the completion notice. During gameplay, a click-through, nonactivating tool window shows this widget only while the launched emulator process is foreground; it never covers the DMD or takes keyboard/controller focus. Exclusive-fullscreen renderers may obscure desktop overlays; borderless/windowed-fullscreen modes permit them.
+
+Completed new games are refreshed into the menu in batches while browsing; refreshes wait until gameplay/dialogs finish. Extracted staging folders are hidden from scans. Replacing an existing file waits for the running game to exit before committing the verified download. App-update prompts wait until ROM downloads finish or are cancelled.
+
+`dotnet run --project tests/DownloadQueueChecks/DownloadQueueChecks.csproj -c Release` checks queue progress, speed/ETA, cross-console additions, duplicate suppression, failure isolation, cancellation, restart, deferred replacements and hidden extraction staging using dummy files.

@@ -1,0 +1,10 @@
+<UserControl x:Class="ArcadeOS.Controls.DownloadProgressWidget" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" IsHitTestVisible="False" Focusable="False" Width="222" Height="72">
+ <Border Background="#FA101722" CornerRadius="8" BorderBrush="#EAC574" BorderThickness="1" Padding="8,5">
+  <Grid><Grid.RowDefinitions><RowDefinition Height="15"/><RowDefinition Height="16"/><RowDefinition Height="17"/><RowDefinition Height="4"/></Grid.RowDefinitions>
+   <TextBlock x:Name="QueueTitle" Foreground="#EAC574" FontSize="10" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+   <TextBlock x:Name="FileTitle" Grid.Row="1" Foreground="#F5F1E8" FontSize="11" TextTrimming="CharacterEllipsis"/>
+   <TextBlock x:Name="TransferDetails" Grid.Row="2" Foreground="#B7C4D6" FontSize="9" TextTrimming="CharacterEllipsis"/>
+   <ProgressBar x:Name="TransferProgress" Grid.Row="3" Maximum="100" Foreground="#76D6BA" Background="#303A49" BorderThickness="0"/>
+  </Grid>
+ </Border>
+</UserControl>

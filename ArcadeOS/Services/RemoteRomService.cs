@@ -148,7 +148,7 @@ public sealed class RemoteRomService : IDisposable
         }
         State.LastCheck = DateTimeOffset.UtcNow; Save();
     }
-    public async Task DownloadAsync(RemoteRom rom, RomSystem system, bool replace, IProgress<RomDownloadProgress>? progress, CancellationToken token)
+    public async Task DownloadAsync(RemoteRom rom, RomSystem system, bool replace, IProgress<RomDownloadProgress>? progress, CancellationToken token, Func<CancellationToken, Task>? beforeCommit = null)
     {
         if (!SafeName(rom.Name) || rom.Url.Authority != Server.Authority || !rom.Url.AbsolutePath.StartsWith(Server.AbsolutePath, StringComparison.Ordinal)) throw new InvalidDataException("Invalid download path.");
         Directory.CreateDirectory(system.Folder);
@@ -189,6 +189,8 @@ public sealed class RemoteRomService : IDisposable
             if (supported)
             {
                 if (rom.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) { using var archive = ZipFile.OpenRead(temp); if (archive.Entries.Count == 0) throw new InvalidDataException("The downloaded ZIP is empty."); }
+                if (beforeCommit is not null) await beforeCommit(token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
                 string? oldFile = null;
                 if (installed is not null && !installed.Equals(destination, StringComparison.OrdinalIgnoreCase)) oldFile = BackupFile(installed, system.Folder);
                 try { File.Move(temp, destination, replace); }
@@ -196,7 +198,7 @@ public sealed class RemoteRomService : IDisposable
                 return;
             }
             // Disc systems often require unzipping. Keep cue/bin and other companion files together in one game folder.
-            Directory.CreateDirectory(extraction);
+            Directory.CreateDirectory(extraction); File.SetAttributes(extraction, FileAttributes.Hidden);
             using (var zip = ZipFile.OpenRead(temp))
             {
                 if (zip.Entries.Count > 10000 || zip.Entries.Sum(e => e.Length) > 128L * 1024 * 1024 * 1024) throw new IOException("Archive exceeds extraction limits.");
@@ -214,6 +216,7 @@ public sealed class RemoteRomService : IDisposable
                 }
                 if (!Directory.EnumerateFiles(extraction, "*", SearchOption.AllDirectories).Any(p => system.Extensions.Contains(Path.GetExtension(p), StringComparer.OrdinalIgnoreCase))) throw new IOException("Archive contains no playable files for this console.");
             }
+            if (beforeCommit is not null) await beforeCommit(token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             if (Directory.Exists(gameFolder))
             {
@@ -232,6 +235,7 @@ public sealed class RemoteRomService : IDisposable
                 try { Directory.Move(extraction, gameFolder); }
                 catch { if (oldFile is not null) File.Move(oldFile, installed!); throw; }
             }
+            File.SetAttributes(gameFolder, FileAttributes.Normal);
         }
         finally { if (File.Exists(temp)) File.Delete(temp); if (Directory.Exists(extraction)) Directory.Delete(extraction, true); }
     }

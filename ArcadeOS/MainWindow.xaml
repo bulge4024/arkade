@@ -55,7 +55,7 @@
     </Trigger></ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style x:Key="MusicHeaderStatus" TargetType="FrameworkElement"><Style.Triggers><DataTrigger Binding="{Binding IsVisible, ElementName=NowPlayingDisplay}" Value="True"><Setter Property="Visibility" Value="Hidden"/></DataTrigger></Style.Triggers></Style>
+  <Style x:Key="MusicHeaderStatus" TargetType="FrameworkElement"><Style.Triggers><DataTrigger Binding="{Binding IsVisible, ElementName=DownloadDisplay}" Value="True"><Setter Property="Visibility" Value="Hidden"/></DataTrigger><DataTrigger Binding="{Binding IsVisible, ElementName=NowPlayingDisplay}" Value="True"><Setter Property="Visibility" Value="Hidden"/></DataTrigger></Style.Triggers></Style>
  </Window.Resources>
  <Grid>
   <Grid x:Name="SystemHome" Margin="22,16">
@@ -288,6 +288,7 @@
     </StackPanel>
    </Grid>
   </Border>
+  <controls:DownloadProgressWidget x:Name="DownloadDisplay" Width="{Binding Width, ElementName=NowPlayingDisplay}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,22,0" Visibility="Collapsed" Panel.ZIndex="201"/>
   <controls:NowPlayingWidget x:Name="NowPlayingDisplay" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,22,0" Panel.ZIndex="90"/>
   <Grid x:Name="LaunchSplash" Background="#090D15" Panel.ZIndex="200" Visibility="Collapsed" AutomationProperties.Name="Starting selected game">
    <Image Source="{Binding SelectedGame.ArtworkPath}" Stretch="UniformToFill" Opacity="0.08"/>

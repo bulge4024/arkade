@@ -13,10 +13,10 @@ public partial class MainWindow
     private readonly RemoteRomService remoteRoms = new();
     private readonly DispatcherTimer romCheckTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     private Border romOverlay = null!;
-    private TextBlock romStatus = null!;
+    private TextBlock romStatus = null!, romQueueStatus = null!;
     private ListBox romList = null!;
     private CheckBox romReplace = null!;
-    private Button romDownload = null!, romAll = null!, romNone = null!, romBack = null!, romConsole = null!, romMap = null!;
+    private Button romDownload = null!, romAll = null!, romNone = null!, romBack = null!, romConsole = null!, romMap = null!, romCancel = null!;
     private CancellationTokenSource? romCancellation;
     private bool romBusy, romChecking, romShowingGames, romMapping;
     private string? romNotified;
@@ -25,8 +25,8 @@ public partial class MainWindow
     private IReadOnlyList<RomSystem> romSystems = [];
     private readonly List<(RemoteRom Rom, CheckBox Box, string? Existing)> romRows = [];
     private bool RomBrowserOpen => romOverlay?.Visibility == Visibility.Visible;
-    private Button[] RomButtons => [romConsole, romMap, romAll, romNone, romDownload, romBack];
-    private bool RomIdle => CanOfferUpdate && !RomBrowserOpen && !romBusy && !romChecking && IsActive;
+    private Button[] RomButtons => [romConsole, romMap, romAll, romNone, romDownload, romCancel, romBack];
+    private bool RomIdle => !romDownloads.IsRunning && CanOfferUpdate && !RomBrowserOpen && !romBusy && !romChecking && IsActive;
     private void InitializeRomDownloads()
     {
         var grid = new Grid();
@@ -40,7 +40,10 @@ public partial class MainWindow
         ScrollViewer.SetCanContentScroll(romList, true); VirtualizingPanel.SetIsVirtualizing(romList, true);
         Grid.SetRow(romList, 2); grid.Children.Add(romList);
         romReplace = new CheckBox { Content = "REPLACE EXISTING: OFF — installed games cannot be selected", Margin = new(0, 8, 0, 12), Foreground = Brushes.White, FontSize = 15 };
-        romReplace.Click += (_, _) => UpdateRomRows(); Grid.SetRow(romReplace, 3); grid.Children.Add(romReplace);
+        romReplace.Click += (_, _) => UpdateRomRows();
+        romQueueStatus = new TextBlock { Foreground = Brushes.LightGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new(0, 2, 0, 6) };
+        var queuePanel = new StackPanel(); queuePanel.Children.Add(romReplace); queuePanel.Children.Add(romQueueStatus);
+        Grid.SetRow(queuePanel, 3); grid.Children.Add(queuePanel);
         var buttons = new WrapPanel(); Grid.SetRow(buttons, 4); grid.Children.Add(buttons);
         Button Add(string text, RoutedEventHandler click)
         {
@@ -51,10 +54,13 @@ public partial class MainWindow
         romMap = Add("CHANGE DESTINATION", (_, _) => ShowRomMapping());
         romAll = Add("SELECT ALL", (_, _) => { foreach (var row in romRows.Where(r => r.Box.IsEnabled)) row.Box.IsChecked = true; });
         romNone = Add("UNCHECK ALL", (_, _) => { foreach (var row in romRows) row.Box.IsChecked = false; });
-        romDownload = Add("DOWNLOAD SELECTED", async (_, _) => await DownloadSelectedRomsAsync());
+        romDownload = Add("DOWNLOAD IN BACKGROUND", async (_, _) => await DownloadSelectedRomsAsync());
+        romCancel = Add("CANCEL DOWNLOADS", (_, _) => { romDownloads.Cancel(); romQueueStatus.Text = "Stopping downloads… Completed games will be kept."; });
+        romCancel.Visibility = Visibility.Collapsed;
         romBack = Add("BACK", (_, _) => CloseRomBrowser());
         romOverlay = new Border { Background = new SolidColorBrush(Color.FromRgb(16, 23, 34)), BorderBrush = Brushes.Gold, BorderThickness = new(1), CornerRadius = new(15), Padding = new(24), Margin = new(22, 16, 22, 16), Child = grid, Visibility = Visibility.Collapsed };
         Panel.SetZIndex(romOverlay, 98); ((Grid)Content).Children.Add(romOverlay);
+        InitializeBackgroundDownloads();
         romList.MouseDoubleClick += async (_, _) => { if (!romShowingGames || romMapping) await OpenRemoteSelectionAsync(); };
         Loaded += (_, _) => romCheckTimer.Start();
         Closed += (_, _) => { romCheckTimer.Stop(); romCancellation?.Cancel(); remoteRoms.Dispose(); };
@@ -87,7 +93,7 @@ public partial class MainWindow
     private void SetRomBusy(bool busy)
     {
         romBusy = busy; romList.IsEnabled = !busy; romReplace.IsEnabled = !busy;
-        foreach (var button in RomButtons) button.IsEnabled = !busy || button == romBack;
+        foreach (var button in RomButtons) button.IsEnabled = !busy || button == romBack || button == romCancel;
         romBack.Content = busy ? "CANCEL" : "BACK";
     }
     private void ConfigureRomView()
@@ -169,37 +175,20 @@ public partial class MainWindow
         romReplace.Content = replace ? "REPLACE EXISTING: ON — selected installed files will be overwritten" : "REPLACE EXISTING: OFF — installed games cannot be selected";
         foreach (var row in romRows) { row.Box.IsEnabled = row.Existing is null || replace; if (!row.Box.IsEnabled) row.Box.IsChecked = false; row.Box.Opacity = row.Box.IsEnabled ? 1 : .4; }
     }
-    private async Task DownloadSelectedRomsAsync()
+    private Task DownloadSelectedRomsAsync()
     {
-        if (romBusy || romSystem is null) return;
+        if (romBusy || romSystem is null) return Task.CompletedTask;
         var selected = romRows.Where(r => r.Box.IsChecked == true && r.Box.IsEnabled).ToArray();
-        if (selected.Length == 0) { romStatus.Text = "Select at least one game first."; return; }
-        bool replace = romReplace.IsChecked == true; SetRomBusy(true);
-        romCancellation = CancellationTokenSource.CreateLinkedTokenSource(metadataCancellation.Token);
-        int completed = 0; var failures = new List<string>();
+        if (selected.Length == 0) { romStatus.Text = "Select at least one game first."; return Task.CompletedTask; }
         try
         {
-            foreach (var row in selected)
-            {
-                romCancellation.Token.ThrowIfCancellationRequested();
-                romStatus.Text = $"Downloading {completed + failures.Count + 1}/{selected.Length}: {row.Rom.Name}…";
-                try
-                {
-                    var progress = new Progress<RomDownloadProgress>(p => romStatus.Text = $"Downloading {completed + failures.Count + 1}/{selected.Length}: {p.Name}\n{p.Bytes / 1048576d:F1} MB" + (p.Total is { } total ? $" / {total / 1048576d:F1} MB" : "") + " - BACK cancels.");
-                    await Task.Run(() => remoteRoms.DownloadAsync(row.Rom, romSystem, replace, progress, romCancellation.Token));
-                    completed++; row.Box.IsChecked = false;
-                }
-                catch (Exception ex) when (RomExpected(ex) && ex is not OperationCanceledException) { failures.Add(row.Rom.Name + ": " + ex.Message); }
-            }
+            int added = romDownloads.Enqueue(selected.Select(row => new RomDownloadRequest(row.Rom, romSystem, row.Existing is not null && romReplace.IsChecked == true)));
+            if (added == 0) { romStatus.Text = "These games are already in the download queue."; return Task.CompletedTask; }
+            foreach (var row in selected) row.Box.IsChecked = false;
+            CloseRomBrowser(); CloseUtility(this, new RoutedEventArgs());
         }
-        catch (OperationCanceledException) { failures.Add("Cancelled. Finished downloads were kept; partial downloads were removed."); }
-        finally
-        {
-            romCancellation.Dispose(); romCancellation = null; SetRomBusy(false);
-            await LoadRetroBatLibraryAsync();
-            await LoadRemoteGamesAsync();
-            romStatus.Text = $"Downloaded {completed}/{selected.Length}. Your library has been refreshed.\n" + string.Join("\n", failures.Take(5)); romBack.Focus();
-        }
+        catch (InvalidOperationException ex) { romStatus.Text = ex.Message; }
+        return Task.CompletedTask;
     }
     private void CloseRomBrowser()
     {
@@ -210,8 +199,13 @@ public partial class MainWindow
     {
         e.Handled = true;
         if (e.Key == Key.Escape && !e.IsRepeat) { CloseRomBrowser(); return; }
-        if (romBusy) return;
         bool select = e.Key is Key.Enter or Key.Space or Key.D1 or Key.NumPad1;
+        if (romBusy)
+        {
+            if (select && !e.IsRepeat) ClickFocused(romCancel, romBack);
+            else if (e.Key is Key.Up or Key.Down or Key.Left or Key.Right or Key.Tab) MoveButtonFocus(e.Key is Key.Up or Key.Left ? -1 : 1, romCancel, romBack);
+            return;
+        }
         if (romList.IsKeyboardFocusWithin)
         {
             if (e.Key is Key.Up or Key.Down) { romList.SelectedIndex = Math.Clamp(romList.SelectedIndex + (e.Key == Key.Up ? -1 : 1), 0, Math.Max(0, romList.Items.Count - 1)); if (romList.SelectedItem is { } item) romList.ScrollIntoView(item); }
