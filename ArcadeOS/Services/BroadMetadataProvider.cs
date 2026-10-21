@@ -175,7 +175,7 @@ public sealed class BroadMetadataProvider(HttpClient client, string directory) :
         if (!data.Names.ContainsKey(key) && relaxed) key = TitleMatcher.Find(title, data.Names.Keys) ?? "";
         if (!data.Names.TryGetValue(key, out var matches) || matches.Length != 1 || !data.Rows.TryGetValue(matches[0], out var matched)) return null;
         string? artFile = null, artUrl = null;
-        if (data.Covers.TryGetValue(matched.Id, out var cover))
+        if (!File.Exists(game.ArtworkPath) && data.Covers.TryGetValue(matched.Id, out var cover))
         {
             artUrl = "https://images.launchbox-app.com/" + Uri.EscapeDataString(cover.File);
             string destination = Path.Combine(directory, "covers", AutomaticMetadataService.CacheKey(game) + "-broad.jpg");

@@ -15,6 +15,7 @@ static class BroadChecks
         <LaunchBox>
         <Game><Name>Example Adventure</Name><DatabaseID>1</DatabaseID><Platform>Nintendo Switch</Platform><ReleaseDate>2018-01-01</ReleaseDate><Overview>A complete description.</Overview><Genres>Adventure</Genres><Developer>Example Studio</Developer><MaxPlayers>2</MaxPlayers></Game>
         <Game><Name>Future Game</Name><DatabaseID>2</DatabaseID><Platform>Future Console</Platform><ReleaseDate>2001-01-01</ReleaseDate></Game>
+        <Game><Name>Native Game</Name><DatabaseID>3</DatabaseID><Platform>Sega Saturn</Platform><ReleaseDate>1995-01-01</ReleaseDate><Genres>Racing</Genres><Overview>Detailed Saturn description.</Overview></Game>
         <GameAlternateName><DatabaseID>1</DatabaseID><AlternateName>Example Alias</AlternateName></GameAlternateName>
         <GameImage><DatabaseID>1</DatabaseID><FileName>00000000-0000-0000-0000-000000000001.png</FileName><Type>Screenshot - Gameplay</Type><Region>World</Region></GameImage>
         <GameImage><DatabaseID>1</DatabaseID><FileName>00000000-0000-0000-0000-000000000002.png</FileName><Type>Box - Front</Type><Region>North America</Region></GameImage>
@@ -53,6 +54,8 @@ static class BroadChecks
             Assert(router.Supports("switch") && router.Supports("gamate") && router.Supports("new-console"), "Console filter still excludes systems");
             Assert(MetadataPlatforms.Broad.Keys.All(router.Supports), "A registered console still has no lookup route");
             var routed = await router.FindAsync(Game("Example Alias"), default); Assert(routed?.ArtworkFile is not null, "Actual provider router did not fall back for Switch");
+            var native = await router.FindAsync(Game("Native Game", "saturn") with { SystemName = "Sega Saturn" }, default);
+            Assert(native?.Year == "1995" && native.Genre == "Racing" && native.ArtworkFile?.EndsWith(".png") == true, "Fallback did not fill missing metadata while preserving native artwork");
             var rows = new Dictionary<string, Dictionary<string, string>>();
             LibretroMetadataProvider.ParseDat("game (\n name \"Repeated\"\n name \"Repeated\"\n genre \"Action\"\n genre \"Adventure\"\n)\n", rows);
             Assert(rows.Count == 1 && rows["Repeated"]["genre"] == "Adventure", "Repeated DAT fields still throw");
@@ -80,6 +83,8 @@ static class BroadChecks
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK);
             if (request.RequestUri!.AbsoluteUri == BroadMetadataProvider.CatalogUrl) { CatalogRequests++; response.Content = new ByteArrayContent(Fixture()); }
+            else if (request.RequestUri.AbsoluteUri.Contains("/redump/Sega%20-%20Saturn")) response.Content = new StringContent("game (\n name \"Native Game (USA)\"\n)\n");
+            else if (request.RequestUri.Host == "raw.githubusercontent.com" && request.RequestUri.AbsoluteUri.Contains("Named_Boxarts")) response.Content = new ByteArrayContent(Png);
             else if (request.RequestUri.Host == "images.launchbox-app.com") { LastImage = request.RequestUri.AbsoluteUri; response.Content = new ByteArrayContent(Png); }
             else { response.StatusCode = HttpStatusCode.NotFound; response.Content = new StringContent(""); }
             return Task.FromResult(response);

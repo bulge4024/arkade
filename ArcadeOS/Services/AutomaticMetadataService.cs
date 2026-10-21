@@ -105,7 +105,7 @@ public sealed class AutomaticMetadataService
                     foreach (var game in games.Where(g => g.SystemId is not null && provider.Supports(g.SystemId)))
                     {
                         var entry = ReadEntry(game);
-                        if (entry is not null && (entry.Metadata is null || !HasCover(game, entry)))
+                        if (entry is not null && (MissingInfo(game, entry) || !HasCover(game, entry)))
                         {
                             entry = entry with { RetryAfter = DateTimeOffset.MinValue }; Remember(game, entry);
                             await WriteAtomicAsync(EntryPath(game), JsonSerializer.Serialize(entry), token).ConfigureAwait(false);
@@ -131,6 +131,9 @@ public sealed class AutomaticMetadataService
         }
         catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex)) { MetadataDiagnostics.Record(directory, ex, "Invalid cached artwork path"); return null; }
     }
+    private static bool MissingInfo(Game game, AutomaticMetadataEntry? entry) => entry?.Metadata is null
+        || string.IsNullOrWhiteSpace(game.Year) && string.IsNullOrWhiteSpace(entry.Metadata.Year)
+        || string.IsNullOrWhiteSpace(game.Genre) && string.IsNullOrWhiteSpace(entry.Metadata.Genre);
     private bool HasCover(Game game, AutomaticMetadataEntry? entry) => File.Exists(game.ArtworkPath) || CachedArtwork(entry) is not null;
     public MetadataLibraryStatus GetLibraryStatus(IReadOnlyList<Game> games)
     {
@@ -163,8 +166,8 @@ public sealed class AutomaticMetadataService
                 {
                     var result = await provider.FindAsync(game, cancellationToken).ConfigureAwait(false);
                     if (result is null) result = await provider.FindRelaxedAsync(game, cancellationToken).ConfigureAwait(false);
-                    var retry = DateTimeOffset.UtcNow + (result?.ArtworkFile is not null ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24));
-                    entry = new(result ?? entry?.Metadata, retry, result is null ? "Unmatched" : "Matched", 6);
+                    var retry = DateTimeOffset.UtcNow + (result?.ArtworkFile is not null && !string.IsNullOrWhiteSpace(result.Year) && !string.IsNullOrWhiteSpace(result.Genre) ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24));
+                    entry = new(result ?? entry?.Metadata, retry, result is null ? "Unmatched" : "Matched", 7);
                     await WriteAtomicAsync(EntryPath(game), JsonSerializer.Serialize(entry), cancellationToken).ConfigureAwait(false);
                     Remember(game, entry);
                     if (result is null) unmatched++; else { matched++; if (HasCover(game, entry)) artwork++; MetadataUpdated?.Invoke(); }
@@ -173,7 +176,7 @@ public sealed class AutomaticMetadataService
                 {
                     failed++; lastError = ex is OperationCanceledException ? "Metadata server timed out; retrying in 5 minutes." : ex.Message;
                     MetadataDiagnostics.Record(directory, ex, "Lookup: " + game.SystemId + "/" + game.Title);
-                    entry = new(entry?.Metadata, ex is MetadataUnavailableException ? DateTimeOffset.UtcNow.AddDays(1) : DateTimeOffset.UtcNow.AddMinutes(5), "Retry pending: " + lastError, 6);
+                    entry = new(entry?.Metadata, ex is MetadataUnavailableException ? DateTimeOffset.UtcNow.AddDays(1) : DateTimeOffset.UtcNow.AddMinutes(5), "Retry pending: " + lastError, 7);
                     Remember(game, entry);
                     try { await WriteAtomicAsync(EntryPath(game), JsonSerializer.Serialize(entry), cancellationToken).ConfigureAwait(false); }
                     catch (Exception writeError) when (writeError is IOException or UnauthorizedAccessException) { }
@@ -200,7 +203,7 @@ public sealed class AutomaticMetadataService
             }
             catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex)) { }
         }
-        return entry is null || pinballArtworkUpgrade || (entry.Status == "Unmatched" && entry.MatcherVersion < 6) || entry.RetryAfter <= DateTimeOffset.UtcNow || coverMissing;
+        return entry is null || pinballArtworkUpgrade || (entry.MatcherVersion < 7 && (entry.Status == "Unmatched" || MissingInfo(game, entry))) || entry.RetryAfter <= DateTimeOffset.UtcNow || coverMissing;
     }
     public static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
     {

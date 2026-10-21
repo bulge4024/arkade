@@ -29,20 +29,21 @@ public sealed class CabinetMetadataProvider : IGameMetadataProvider, IMetadataSt
         try
         {
             original = relaxed ? await primary.FindRelaxedAsync(game, token).ConfigureAwait(false) : await primary.FindAsync(game, token).ConfigureAwait(false);
-            if (original?.ArtworkFile is not null || game.SystemId == "vpinball") return original;
+            if (original?.ArtworkFile is not null && !string.IsNullOrWhiteSpace(original.Year) && !string.IsNullOrWhiteSpace(original.Genre) || game.SystemId == "vpinball") return original;
         }
         catch (Exception ex) when (MetadataDiagnostics.Recoverable(ex) && !token.IsCancellationRequested)
         { MetadataDiagnostics.Record(directory, ex, "Primary lookup: " + game.SystemId + "/" + game.Title); }
         CachedGameMetadata? fallback;
-        var broadGame = original?.Title is { Length: > 0 } ? game with { Title = original.Title } : game;
+        var broadGame = original?.Title is { Length: > 0 } ? game with { Title = original.Title, ArtworkPath = original.ArtworkFile is { } cover ? Path.GetFullPath(cover, directory) : game.ArtworkPath } : game;
         try { fallback = relaxed ? await broad.FindRelaxedAsync(broadGame, token).ConfigureAwait(false) : await broad.FindAsync(broadGame, token).ConfigureAwait(false); }
         catch (Exception ex) when (original is not null && MetadataDiagnostics.Recoverable(ex) && !token.IsCancellationRequested)
         { MetadataDiagnostics.Record(directory, ex, "Broad fallback: " + game.Title); return original; }
         if (original is null) return fallback;
         if (fallback is null) return original;
-        return original with { Year = original.Year ?? fallback.Year, Genre = original.Genre ?? fallback.Genre, Description = fallback.Description ?? original.Description,
-            Developer = original.Developer ?? fallback.Developer, Publisher = original.Publisher ?? fallback.Publisher, Players = original.Players ?? fallback.Players,
-            ArtworkFile = fallback.ArtworkFile, ArtworkSourceUrl = fallback.ArtworkSourceUrl, SourceUrl = fallback.SourceUrl };
+        static string? Prefer(string? existing, string? added) => string.IsNullOrWhiteSpace(existing) ? added : existing;
+        return original with { Year = Prefer(original.Year, fallback.Year), Genre = Prefer(original.Genre, fallback.Genre), Description = Prefer(fallback.Description, original.Description),
+            Developer = Prefer(original.Developer, fallback.Developer), Publisher = Prefer(original.Publisher, fallback.Publisher), Players = Prefer(original.Players, fallback.Players),
+            ArtworkFile = original.ArtworkFile ?? fallback.ArtworkFile, ArtworkSourceUrl = original.ArtworkSourceUrl ?? fallback.ArtworkSourceUrl, SourceUrl = fallback.SourceUrl };
     }
 }
 
